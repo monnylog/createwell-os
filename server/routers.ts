@@ -15,6 +15,7 @@ import {
   listDecisions,
   listNeeds,
   listTasks,
+  getTeamProfile,
   resolvePersonPageId,
 } from "./notion/service";
 import { notionConfig } from "./notion/config";
@@ -36,6 +37,20 @@ export const appRouter = router({
       events: publicProcedure.query(() => readPublicCache("events", getUpcomingEvents)),
     }),
     team: router({
+      profile: protectedProcedure.query(async ({ ctx }) => {
+        const profile = await getTeamProfile(ctx.user);
+        const checkIns = await listCheckIns(profile.personPageId);
+        return {
+          ...profile,
+          checkInCount: checkIns.length,
+          lastCheckIn: checkIns[0] ? {
+            week: checkIns[0].week,
+            mood: checkIns[0].mood,
+            absorption: checkIns[0].absorption,
+            bodyStatus: checkIns[0].bodyStatus,
+          } : null,
+        };
+      }),
       programCalendar: protectedProcedure.query(() => listDataSourceRecords(notionConfig.dataSourceIds.events)),
       editorialPipeline: protectedProcedure.query(() => listDataSourceRecords(notionConfig.dataSourceIds.content)),
       tasks: router({

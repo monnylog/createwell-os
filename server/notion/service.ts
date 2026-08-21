@@ -46,6 +46,7 @@ function propertyValue(properties: Record<string, any>, name: string): string {
   if (property.type === "rich_text") return property.rich_text?.map((item: any) => item.plain_text ?? "").join("") ?? "";
   if (property.type === "title") return property.title?.map((item: any) => item.plain_text ?? "").join("") ?? "";
   if (property.type === "date") return property.date?.start ?? "";
+  if (property.type === "email") return property.email ?? "";
   return "";
 }
 
@@ -114,8 +115,7 @@ export async function createTopicWellDrop(input: TopicWellInput) {
   });
 }
 
-export async function resolvePersonPageId(user: { name: string | null; email: string | null }) {
-  const records = await listDataSourceRecords(notionConfig.dataSourceIds.people);
+export function findTeamPersonRecord(records: CreateWellRecord[], user: { name: string | null; email: string | null }) {
   const email = normalize(user.email ?? "");
   const name = normalize(user.name ?? "");
   const match = records.find(record => {
@@ -128,7 +128,26 @@ export async function resolvePersonPageId(user: { name: string | null; email: st
     throw new Error("Your account is not linked to a Create Well People record. Add a matching email or name before submitting.");
   }
 
-  return match.id;
+  return match;
+}
+
+export async function getTeamProfile(user: { name: string | null; email: string | null }) {
+  const records = await listDataSourceRecords(notionConfig.dataSourceIds.people);
+  const match = findTeamPersonRecord(records, user);
+  const matchedBy = normalize(match.email) === normalize(user.email ?? "") && Boolean(user.email) ? "email" : "name";
+  return {
+    personPageId: match.id,
+    name: match.name || user.name || "Create Well team member",
+    email: user.email ?? match.email,
+    role: match.role || "Team member",
+    notes: propertyValue(match.properties, "Notes"),
+    linkedBy: matchedBy as "email" | "name",
+  };
+}
+
+export async function resolvePersonPageId(user: { name: string | null; email: string | null }) {
+  const profile = await getTeamProfile(user);
+  return profile.personPageId;
 }
 
 export async function listTasks() {
@@ -159,7 +178,7 @@ export async function listCheckIns(personPageId: string) {
   return records.filter(record => {
     const relation = record.properties.Person?.relation ?? [];
     return relation.some((item: { id: string }) => item.id === personPageId);
-  });
+  }).sort((left, right) => Date.parse(right.week || right.start || "1970-01-01") - Date.parse(left.week || left.start || "1970-01-01"));
 }
 
 function getWeekStart() {

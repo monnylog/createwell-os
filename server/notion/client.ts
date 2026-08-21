@@ -82,6 +82,7 @@ export function notionPageToRecord(page: any) {
     if (property.type === "select" || property.type === "status") return property[property.type]?.name ?? "";
     if (property.type === "date") return property.date?.start ?? "";
     if (property.type === "checkbox") return Boolean(property.checkbox);
+    if (property.type === "email") return property.email ?? "";
     return property[property.type] ?? "";
   };
 
@@ -98,6 +99,9 @@ export function notionPageToRecord(page: any) {
     absorption: String(readText("Absorption")),
     bodyStatus: String(readText("Body Status")),
     category: String(readText("Category") || readText("Domain")),
+    email: String(readText("Email")),
+    role: String(readText("Role")),
+    week: String(readText("Week")),
     summary: String(readText("Summary") || readText("Copy") || readText("Notes") || readText("Drop")),
     start: String(readText("Start")),
     end: String(readText("End")),

@@ -17,6 +17,7 @@ import {
   listDecisions,
   listNeeds,
   listTasks,
+  getTeamProfile,
   resolvePersonPageId,
 } from "../notion/service";
 
@@ -167,6 +168,27 @@ export function registerCreateWellRoutes(app: Express) {
     if (!(await requireAuthenticatedUser(req, res))) return;
     try {
       res.json({ items: await listTasks() });
+    } catch (error) {
+      errorResponse(error, res);
+    }
+  });
+
+  app.get("/api/team/profile", async (req, res) => {
+    const user = await requireAuthenticatedUser(req, res);
+    if (!user) return;
+    try {
+      const profile = await getTeamProfile(user);
+      const checkIns = await listCheckIns(profile.personPageId);
+      res.json({
+        ...profile,
+        checkInCount: checkIns.length,
+        lastCheckIn: checkIns[0] ? {
+          week: checkIns[0].week,
+          mood: checkIns[0].mood,
+          absorption: checkIns[0].absorption,
+          bodyStatus: checkIns[0].bodyStatus,
+        } : null,
+      });
     } catch (error) {
       errorResponse(error, res);
     }

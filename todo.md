@@ -16,3 +16,9 @@
 - [x] Run type checks, tests, and visual verification of public and private routes.
 - [x] Commit the initial Create Well OS implementation to the private GitHub repository.
 - [x] Document required Notion setup values, access boundaries, and webhook configuration.
+- [x] Link current authenticated team identities to their People records using supported profile fields.
+- [x] Add clearly labeled preview Event and Content records in Notion for public-site review.
+- [x] Add an authenticated profile display with People-link status and check-in context in the team portal.
+- [x] Add smooth loading, empty, success, and error states for authenticated tasks and check-ins.
+- [x] Add and run tests for profile linkage and resilient dashboard workflow states.
+- [x] Apply Create Well’s deep-teal, warm-ivory, editorial, water-current visual system consistently to the new profile and workflow feedback components.
