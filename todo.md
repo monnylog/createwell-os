@@ -14,5 +14,5 @@
 - [x] Write Vitest coverage for idempotency and webhook verification.
 - [x] Write Vitest coverage for public/private access boundaries, rate limiting, and validation.
 - [x] Run type checks, tests, and visual verification of public and private routes.
-- [ ] Commit the initial Create Well OS implementation to the private GitHub repository.
+- [x] Commit the initial Create Well OS implementation to the private GitHub repository.
 - [x] Document required Notion setup values, access boundaries, and webhook configuration.
