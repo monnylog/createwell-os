@@ -13,6 +13,11 @@
  * Keeper are PEOPLE relations — publishing them would leak the relationship
  * graph. Money is a MONEY relation. Capacity is withheld by default because a
  * bare number invites misreading as availability.
+ *
+ * Phase is internal production stage. A Flow deep in Marketing is exactly when
+ * it should be public — but which phase the team is in is not the community's
+ * business. Publication is gated by Public? + Status + a future date; Phase
+ * never participates in that decision.
  */
 export const PUBLIC_FLOW_DENIED_FIELDS = [
   "Notes",
@@ -28,6 +33,7 @@ export const PUBLIC_FLOW_DENIED_FIELDS = [
   "Flow Keeper",
   "Moves",
   "Capacity",
+  "Phase",
   "notes",
   "retro",
   "driveFolder",
@@ -40,6 +46,7 @@ export const PUBLIC_FLOW_DENIED_FIELDS = [
   "flowKeeper",
   "moves",
   "capacity",
+  "phase",
 ] as const;
 
 /**

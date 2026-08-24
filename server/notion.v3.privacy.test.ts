@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   ACTIVE_MOVE_STATUSES,
+  isMarketingOverdue,
   isRenderableAsset,
   moveBelongsToPerson,
   myMovesSql,
+  needsMarketingSql,
   publicContentSql,
   publicFlowsSql,
   PUBLIC_FLOW_STATUSES,
   toPublicContent,
   toPublicFlow,
+  toTeamFlow,
   toTeamMove,
   V3_DATA_SOURCES,
   withStaleness,
@@ -35,6 +38,7 @@ const podyapRow: RawRow = {
   Name: "Podyap Ep 12",
   Type: "Podyap",
   Status: "Ready",
+  Phase: "Depanty",
   "date:Date:start": "2026-08-26",
   Venue: "Studio",
   "Public?": "__YES__",
@@ -77,11 +81,20 @@ describe("public FLOWS surface", () => {
     );
   });
 
+  it("does not select Phase", () => {
+    expect(publicFlowsSql("2026-08-24")).not.toContain("Phase");
+  });
+
   it("maps a Flow down to public-safe fields only", () => {
     const mapped = toPublicFlow(podyapRow) as Record<string, unknown>;
     expect(Object.keys(mapped).sort()).toEqual(
       ["date", "id", "name", "type", "venue"].sort(),
     );
+  });
+
+  it("never emits a phase key on the public mapper", () => {
+    expect(toPublicFlow(podyapRow)).not.toHaveProperty("phase");
+    expect(JSON.stringify(toPublicFlow(podyapRow))).not.toContain("Depanty");
   });
 
   it("leaks no internal production field through the public mapper", () => {
@@ -114,8 +127,89 @@ describe("public FLOWS surface", () => {
       notes: "internal",
       driveFolder: "https://drive.google.com/x",
       capacity: 8,
+      phase: "Marketing",
     });
     expect(scrubbed).toEqual({ id: "flow-1", name: "Open Studio" });
+  });
+});
+
+describe("FLOWS.Phase is internal", () => {
+  it("is on the public deny-list in both casings", () => {
+    expect(PUBLIC_FLOW_DENIED_FIELDS).toContain("Phase");
+    expect(PUBLIC_FLOW_DENIED_FIELDS).toContain("phase");
+  });
+
+  it("is available to the team read model", () => {
+    expect(toTeamFlow(podyapRow).phase).toBe("Depanty");
+  });
+
+  it("coexists with Status as a separate axis", () => {
+    const flow = toTeamFlow(podyapRow);
+    expect(flow.status).toBe("Ready");
+    expect(flow.phase).toBe("Depanty");
+  });
+
+  it("rejects a phase value outside the vocabulary", () => {
+    expect(toTeamFlow({ ...podyapRow, Phase: "Vibing" }).phase).toBeNull();
+  });
+});
+
+describe("marketing-overdue alarm", () => {
+  const TODAY = "2026-08-24";
+  const FOUR_WEEKS = "2026-09-21";
+
+  it("flags a Concepting Flow two weeks out", () => {
+    expect(
+      isMarketingOverdue(
+        { "date:Date:start": "2026-09-07", Phase: "Concepting", Status: "Scheduled" },
+        TODAY,
+        FOUR_WEEKS,
+      ),
+    ).toBe(true);
+  });
+
+  it("does not flag a Marketing Flow two weeks out", () => {
+    expect(
+      isMarketingOverdue(
+        { "date:Date:start": "2026-09-07", Phase: "Marketing", Status: "Approved" },
+        TODAY,
+        FOUR_WEEKS,
+      ),
+    ).toBe(false);
+  });
+
+  it("does not flag a Concepting Flow eight weeks out", () => {
+    expect(
+      isMarketingOverdue(
+        { "date:Date:start": "2026-10-19", Phase: "Concepting", Status: "Idea" },
+        TODAY,
+        FOUR_WEEKS,
+      ),
+    ).toBe(false);
+  });
+
+  it("treats a blank Phase as not started", () => {
+    expect(
+      isMarketingOverdue({ "date:Date:start": "2026-09-07", Status: "Scheduled" }, TODAY, FOUR_WEEKS),
+    ).toBe(true);
+  });
+
+  it("ignores Cancelled Flows", () => {
+    expect(
+      isMarketingOverdue(
+        { "date:Date:start": "2026-09-07", Phase: "Concepting", Status: "Cancelled" },
+        TODAY,
+        FOUR_WEEKS,
+      ),
+    ).toBe(false);
+  });
+
+  it("builds SQL scoped to the four-week window and pre-marketing phases", () => {
+    const sql = needsMarketingSql(TODAY, FOUR_WEEKS);
+    expect(sql).toContain("'Cohoe'");
+    expect(sql).toContain("'Concepting'");
+    expect(sql).not.toContain("'Marketing'");
+    expect(sql).toContain(FOUR_WEEKS);
   });
 });
 

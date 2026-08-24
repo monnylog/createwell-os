@@ -30,6 +30,7 @@ export type TeamFlowRecord = {
   name: string;
   type: string;
   status: string;
+  phase: string;
   date: string;
   venue: string;
   mediaCutoff: string;
@@ -100,7 +101,7 @@ export async function getApprovedContent() {
  * programming, not an archive. Internal Flows are never public.
  *
  * Returns public-safe fields only. Notes, Retro, Drive Folder, Media Cutoff,
- * Hard Stop, Capacity, and every PEOPLE/MONEY relation are withheld.
+ * Hard Stop, Capacity, Phase, and every PEOPLE/MONEY relation are withheld.
  */
 export async function getUpcomingPublicFlows() {
   const records = await listDataSourceRecords(notionConfig.dataSourceIds.flows);
@@ -125,7 +126,12 @@ export async function getUpcomingPublicFlows() {
     }));
 }
 
-/** Team-facing FLOWS read. Authenticated callers only. */
+/**
+ * Team-facing FLOWS read. Authenticated callers only.
+ *
+ * Includes Phase — the production-stage axis, orthogonal to Status. Status
+ * answers "is this real?"; Phase answers "what work is live right now?"
+ */
 export async function listFlows() {
   const records = await listDataSourceRecords(notionConfig.dataSourceIds.flows);
   return records
@@ -135,6 +141,7 @@ export async function listFlows() {
       name: propertyValue(record.properties, "Name") || record.name,
       type: propertyValue(record.properties, "Type"),
       status: propertyValue(record.properties, "Status"),
+      phase: propertyValue(record.properties, "Phase"),
       date: propertyValue(record.properties, "Date"),
       venue: propertyValue(record.properties, "Venue"),
       mediaCutoff: propertyValue(record.properties, "Media Cutoff"),

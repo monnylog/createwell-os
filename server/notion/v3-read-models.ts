@@ -50,6 +50,27 @@ export const PUBLIC_FLOW_STATUSES: FlowStatus[] = [
   "Approved",
 ];
 
+/**
+ * The event flow. A second axis, orthogonal to Status: Status answers "is this
+ * real?", Phase answers "what work is live right now?" A workshop can be
+ * Approved and in Marketing; a Geyser can be Wrapped and in Depanty.
+ *
+ * Internal production state — never public.
+ */
+export const FLOW_PHASES = [
+  "Cohoe",
+  "Concepting",
+  "Coordinating",
+  "Marketing",
+  "Day of",
+  "Decomprocessing",
+  "Depanty",
+] as const;
+export type FlowPhase = (typeof FLOW_PHASES)[number];
+
+/** Phases that mean promotion has not started yet. */
+export const PRE_MARKETING_PHASES: FlowPhase[] = ["Cohoe", "Concepting"];
+
 export const MOVE_STATUSES = ["Now", "Next", "Done", "Dropped"] as const;
 export type MoveStatus = (typeof MOVE_STATUSES)[number];
 
@@ -92,6 +113,7 @@ export type PublicContent = {
   url: string | null;
 };
 
+/** Note the absence of `phase`. Production stage is not published. */
 export type PublicFlow = {
   id: string;
   name: string;
@@ -109,6 +131,7 @@ export type TeamFlow = {
   name: string;
   type: FlowType | null;
   status: FlowStatus | null;
+  phase: FlowPhase | null;
   date: string | null;
   venue: string | null;
   mediaCutoff: string | null;
@@ -224,6 +247,8 @@ export function publicContentSql(): string {
  * `Idea`, or long since `Cancelled`. The compound gate requires an actionable
  * status AND a future date. `Happened` and `Wrapped` are excluded even when
  * recent — the public surface is upcoming programming, not an archive.
+ *
+ * `Phase` is deliberately not selected. Production stage is internal.
  */
 export function publicFlowsSql(todayIso: string): string {
   return [
@@ -240,12 +265,30 @@ export function publicFlowsSql(todayIso: string): string {
 /** Team-facing Flows inside a date window. Authenticated callers only. */
 export function teamFlowsThisWeekSql(startIso: string, endIso: string): string {
   return [
-    "SELECT url, \"Name\", \"Type\", \"Status\", \"date:Date:start\",",
+    "SELECT url, \"Name\", \"Type\", \"Status\", \"Phase\", \"date:Date:start\",",
     "       \"Venue\", \"date:Media Cutoff:start\", \"Drive Folder\"",
     `FROM ${source(V3_DATA_SOURCES.flows)}`,
     `WHERE "date:Date:start" >= '${startIso}'`,
     `  AND "date:Date:start" <= '${endIso}'`,
     "  AND \"Status\" != 'Cancelled'",
+    "ORDER BY \"date:Date:start\" ASC",
+  ].join("\n");
+}
+
+/**
+ * Flows whose date is inside four weeks but whose Phase says promotion has not
+ * started. The operations guide sets a hard marketing start around four weeks
+ * out, with the date secured at least a month prior — so this is the
+ * "marketing should have started" alarm, not a nag.
+ */
+export function needsMarketingSql(todayIso: string, fourWeeksOutIso: string): string {
+  return [
+    "SELECT url, \"Name\", \"Type\", \"Status\", \"Phase\", \"date:Date:start\"",
+    `FROM ${source(V3_DATA_SOURCES.flows)}`,
+    `WHERE "date:Date:start" >= '${todayIso}'`,
+    `  AND "date:Date:start" <= '${fourWeeksOutIso}'`,
+    "  AND \"Status\" != 'Cancelled'",
+    `  AND ("Phase" IS NULL OR "Phase" IN (${quoted(PRE_MARKETING_PHASES)}))`,
     "ORDER BY \"date:Date:start\" ASC",
   ].join("\n");
 }
@@ -281,6 +324,7 @@ export function toPublicContent(row: RawRow): PublicContent {
   };
 }
 
+/** Public-safe fields only. Phase is intentionally absent. */
 export function toPublicFlow(row: RawRow): PublicFlow {
   return {
     id: str(row, "url") ?? "",
@@ -297,6 +341,7 @@ export function toTeamFlow(row: RawRow): TeamFlow {
     name: str(row, "Name") ?? "",
     type: oneOf(str(row, "Type"), FLOW_TYPES),
     status: oneOf(str(row, "Status"), FLOW_STATUSES),
+    phase: oneOf(str(row, "Phase"), FLOW_PHASES),
     date: str(row, "date:Date:start"),
     venue: str(row, "Venue"),
     mediaCutoff: str(row, "date:Media Cutoff:start"),
@@ -315,6 +360,19 @@ export function toTeamMove(row: RawRow): TeamMove {
     blockedBy: str(row, "Blocked By"),
     flowId: firstRelation(row, "Flow"),
   };
+}
+
+/**
+ * True when a Flow is close enough that promotion should be underway but its
+ * Phase says it is not. A blank Phase counts as not started.
+ */
+export function isMarketingOverdue(row: RawRow, todayIso: string, fourWeeksOutIso: string): boolean {
+  const date = str(row, "date:Date:start") ?? str(row, "Date");
+  if (!date) return false;
+  if (date < todayIso || date > fourWeeksOutIso) return false;
+  if (str(row, "Status") === "Cancelled") return false;
+  const phase = oneOf(str(row, "Phase"), FLOW_PHASES);
+  return phase === null || PRE_MARKETING_PHASES.includes(phase);
 }
 
 /**
