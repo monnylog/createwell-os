@@ -1,25 +1,28 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { readPublicCache } from "./notion/cache";
-import { checkInInputSchema, taskCreateInputSchema } from "./notion/schemas";
 import {
-  createCheckIn,
-  createTask,
-  getActiveOffers,
   getApprovedContent,
-  getUpcomingEvents,
-  listCheckIns,
-  listDataSourceRecords,
-  listDecisions,
-  listNeeds,
-  listTasks,
   getTeamProfile,
-  resolvePersonPageId,
+  getUpcomingPublicFlows,
+  listDataSourceRecords,
+  listFlows,
+  listMoves,
 } from "./notion/service";
 import { notionConfig } from "./notion/config";
 
+/**
+ * Create Well OS v3.
+ *
+ * The public surface is two reads: approved CONTENT and upcoming public FLOWS.
+ * There is no public write, no MONEY route, and no PEOPLE route.
+ *
+ * Removed in v3: `public.offers` (Offers retired — the seven Well layers are
+ * the FLOWS.Type select), `team.checkIns`, `admin.needs`, `admin.decisions`,
+ * and every mutation. See docs/v3-domain-map.md.
+ */
 export const appRouter = router({
   system: systemRouter,
   auth: router({
@@ -33,47 +36,17 @@ export const appRouter = router({
   createWell: router({
     public: router({
       content: publicProcedure.query(() => readPublicCache("content", getApprovedContent)),
-      offers: publicProcedure.query(() => readPublicCache("offers", getActiveOffers)),
-      events: publicProcedure.query(() => readPublicCache("events", getUpcomingEvents)),
+      flows: publicProcedure.query(() => readPublicCache("flows", getUpcomingPublicFlows)),
     }),
     team: router({
-      profile: protectedProcedure.query(async ({ ctx }) => {
-        const profile = await getTeamProfile(ctx.user);
-        const checkIns = await listCheckIns(profile.personPageId);
-        return {
-          ...profile,
-          checkInCount: checkIns.length,
-          lastCheckIn: checkIns[0] ? {
-            week: checkIns[0].week,
-            mood: checkIns[0].mood,
-            absorption: checkIns[0].absorption,
-            bodyStatus: checkIns[0].bodyStatus,
-          } : null,
-        };
+      profile: protectedProcedure.query(({ ctx }) => getTeamProfile(ctx.user)),
+      programCalendar: protectedProcedure.query(() => listFlows()),
+      editorialPipeline: protectedProcedure.query(() =>
+        listDataSourceRecords(notionConfig.dataSourceIds.content),
+      ),
+      moves: router({
+        list: protectedProcedure.query(() => listMoves()),
       }),
-      programCalendar: protectedProcedure.query(() => listDataSourceRecords(notionConfig.dataSourceIds.events)),
-      editorialPipeline: protectedProcedure.query(() => listDataSourceRecords(notionConfig.dataSourceIds.content)),
-      tasks: router({
-        list: protectedProcedure.query(() => listTasks()),
-        create: protectedProcedure.input(taskCreateInputSchema).mutation(async ({ ctx, input }) => {
-          const personPageId = await resolvePersonPageId(ctx.user);
-          return createTask(input, personPageId);
-        }),
-      }),
-      checkIns: router({
-        list: protectedProcedure.query(async ({ ctx }) => {
-          const personPageId = await resolvePersonPageId(ctx.user);
-          return listCheckIns(personPageId);
-        }),
-        create: protectedProcedure.input(checkInInputSchema).mutation(async ({ ctx, input }) => {
-          const personPageId = await resolvePersonPageId(ctx.user);
-          return createCheckIn(input, personPageId, ctx.user.name);
-        }),
-      }),
-    }),
-    admin: router({
-      needs: adminProcedure.query(() => listNeeds()),
-      decisions: adminProcedure.query(() => listDecisions()),
     }),
   }),
 });
