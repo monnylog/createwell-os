@@ -1,38 +1,43 @@
-import { createPage, notionPageToRecord, notionProperty, queryDataSource } from "./client";
+import { notionPageToRecord, queryDataSource } from "./client";
 import { notionConfig } from "./config";
-import type { CheckInInput, TopicWellInput } from "./schemas";
 
-type NotionQueryResponse = {
-  results?: any[];
-};
+type NotionQueryResponse = { results?: any[] };
 
 export type CreateWellRecord = ReturnType<typeof notionPageToRecord>;
+
+const V3_PAUSED = (feature: string, reason: string) =>
+  new Error(`${feature} is paused in Create Well OS v3 — ${reason}`);
 
 export type PublicContentRecord = {
   id: string;
   name: string;
-  type: string;
-  summary: string;
+  contentType: string;
+  copy: string;
   publishDate: string;
+  url: string;
 };
 
-export type PublicOfferRecord = {
+export type PublicFlowRecord = {
   id: string;
   name: string;
   type: string;
-  layer: string;
-  summary: string;
+  date: string;
+  venue: string;
 };
 
-export type PublicEventRecord = {
+export type TeamFlowRecord = {
   id: string;
   name: string;
   type: string;
-  start: string;
-  end: string;
-  location: string;
-  summary: string;
+  status: string;
+  date: string;
+  venue: string;
+  mediaCutoff: string;
+  driveFolder: string;
 };
+
+/** A Flow is publicly listable only in these states. */
+const PUBLIC_FLOW_STATUSES = new Set(["scheduled", "ready", "approved"]);
 
 export async function listDataSourceRecords(dataSourceId: string) {
   const response = await queryDataSource<NotionQueryResponse>(dataSourceId, { page_size: 100 });
@@ -47,72 +52,99 @@ function propertyValue(properties: Record<string, any>, name: string): string {
   if (property.type === "title") return property.title?.map((item: any) => item.plain_text ?? "").join("") ?? "";
   if (property.type === "date") return property.date?.start ?? "";
   if (property.type === "email") return property.email ?? "";
+  if (property.type === "url") return property.url ?? "";
+  if (property.type === "number") return property.number == null ? "" : String(property.number);
   return "";
+}
+
+function checkboxValue(properties: Record<string, any>, name: string): boolean {
+  return properties[name]?.checkbox === true;
 }
 
 function normalize(value: string) {
   return value.trim().toLocaleLowerCase();
 }
 
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * Public CONTENT: Status = Published AND Audience = Public.
+ *
+ * `Notes` (internal editorial commentary) and `Where` (production wiring) are
+ * never returned. `Final?` is asset-specific and is not a global gate.
+ */
 export async function getApprovedContent() {
   const records = await listDataSourceRecords(notionConfig.dataSourceIds.content);
-  return records.filter(record => {
-    const status = normalize(propertyValue(record.properties, "Status"));
-    const audience = normalize(propertyValue(record.properties, "Audience"));
-    return status === "published" && (audience === "public" || audience === "community");
-  }).map<PublicContentRecord>(record => ({
-    id: record.id,
-    name: record.name,
-    type: record.type,
-    summary: record.summary,
-    publishDate: record.publishDate,
-  }));
-}
-
-export async function getActiveOffers() {
-  const records = await listDataSourceRecords(notionConfig.dataSourceIds.offers);
-  const excludedStatuses = new Set(["archived", "inactive", "cancelled"]);
-  return records
-    .filter(record => !excludedStatuses.has(normalize(propertyValue(record.properties, "Status"))))
-    .map<PublicOfferRecord>(record => ({
-      id: record.id,
-      name: record.name,
-      type: record.type,
-      layer: propertyValue(record.properties, "Layer"),
-      summary: record.summary,
-    }));
-}
-
-export async function getUpcomingEvents() {
-  const records = await listDataSourceRecords(notionConfig.dataSourceIds.events);
-  const now = Date.now();
-  const excludedStatuses = new Set(["draft", "archived", "cancelled"]);
   return records
     .filter(record => {
-      const start = propertyValue(record.properties, "Start");
       const status = normalize(propertyValue(record.properties, "Status"));
-      return Boolean(start) && Date.parse(start) >= now && !excludedStatuses.has(status);
+      const audience = normalize(propertyValue(record.properties, "Audience"));
+      return status === "published" && audience === "public";
     })
-    .sort((left, right) => Date.parse(left.start) - Date.parse(right.start))
-    .map<PublicEventRecord>(record => ({
+    .map<PublicContentRecord>(record => ({
       id: record.id,
-      name: record.name,
-      type: record.type,
-      start: record.start,
-      end: record.end,
-      location: propertyValue(record.properties, "Location"),
-      summary: record.summary,
+      name: propertyValue(record.properties, "Name") || record.name,
+      contentType: propertyValue(record.properties, "Content Type"),
+      copy: propertyValue(record.properties, "Copy"),
+      publishDate: propertyValue(record.properties, "Publish Date"),
+      url: propertyValue(record.properties, "URL"),
     }));
 }
 
-export async function createTopicWellDrop(input: TopicWellInput) {
-  return createPage(notionConfig.dataSourceIds.topicWell, {
-    Name: notionProperty.title(input.name),
-    Status: notionProperty.richText("Intake"),
-    Drop: notionProperty.richText(input.drop),
-    Anonymous: notionProperty.checkbox(input.anonymous),
-    Notes: notionProperty.richText(`Consent to share: ${input.consentToShare ? "yes" : "no"}\nSource: ${input.source}`),
-  });
+/**
+ * Public FLOWS. The `Public?` checkbox alone is insufficient: a Flow can be
+ * flagged public while still an Idea, or long since Cancelled. Happened and
+ * Wrapped are excluded even when recent — this surface is upcoming
+ * programming, not an archive. Internal Flows are never public.
+ *
+ * Returns public-safe fields only. Notes, Retro, Drive Folder, Media Cutoff,
+ * Hard Stop, Capacity, and every PEOPLE/MONEY relation are withheld.
+ */
+export async function getUpcomingPublicFlows() {
+  const records = await listDataSourceRecords(notionConfig.dataSourceIds.flows);
+  const today = todayIso();
+  return records
+    .filter(record => {
+      if (!checkboxValue(record.properties, "Public?")) return false;
+      if (normalize(propertyValue(record.properties, "Type")) === "internal") return false;
+      if (!PUBLIC_FLOW_STATUSES.has(normalize(propertyValue(record.properties, "Status")))) return false;
+      const date = propertyValue(record.properties, "Date");
+      return Boolean(date) && date >= today;
+    })
+    .sort((left, right) =>
+      propertyValue(left.properties, "Date").localeCompare(propertyValue(right.properties, "Date")),
+    )
+    .map<PublicFlowRecord>(record => ({
+      id: record.id,
+      name: propertyValue(record.properties, "Name") || record.name,
+      type: propertyValue(record.properties, "Type"),
+      date: propertyValue(record.properties, "Date"),
+      venue: propertyValue(record.properties, "Venue"),
+    }));
+}
+
+/** Team-facing FLOWS read. Authenticated callers only. */
+export async function listFlows() {
+  const records = await listDataSourceRecords(notionConfig.dataSourceIds.flows);
+  return records
+    .filter(record => normalize(propertyValue(record.properties, "Status")) !== "cancelled")
+    .map<TeamFlowRecord>(record => ({
+      id: record.id,
+      name: propertyValue(record.properties, "Name") || record.name,
+      type: propertyValue(record.properties, "Type"),
+      status: propertyValue(record.properties, "Status"),
+      date: propertyValue(record.properties, "Date"),
+      venue: propertyValue(record.properties, "Venue"),
+      mediaCutoff: propertyValue(record.properties, "Media Cutoff"),
+      driveFolder: propertyValue(record.properties, "Drive Folder"),
+    }));
+}
+
+/** MOVES. `Now` or `Next` IS the priority; `Dropped` is a real outcome. */
+export async function listMoves() {
+  return listDataSourceRecords(notionConfig.dataSourceIds.moves);
 }
 
 export function findTeamPersonRecord(records: CreateWellRecord[], user: { name: string | null; email: string | null }) {
@@ -150,64 +182,44 @@ export async function resolvePersonPageId(user: { name: string | null; email: st
   return profile.personPageId;
 }
 
-export async function listTasks() {
-  return listDataSourceRecords(notionConfig.dataSourceIds.tasks);
+// ---------------------------------------------------------------------------
+// Paused in v3.
+//
+// These are kept as explicit failures rather than deleted so a future caller
+// gets an explanatory error instead of a mysterious 404, and so the pause is
+// legible in code and not only in docs/v3-domain-map.md.
+// ---------------------------------------------------------------------------
+
+export async function createTopicWellDrop(_input: unknown): Promise<never> {
+  throw V3_PAUSED(
+    "Topic Well intake",
+    "a drop becomes a CONTENT draft, a FLOWS Idea, or a page body. No separate database.",
+  );
 }
 
-export async function createTask(input: {
-  name: string;
-  status: string;
-  phase: string;
-  priority: string;
-  nextAction: string;
-  due?: string;
-}, personPageId: string) {
-  return createPage(notionConfig.dataSourceIds.tasks, {
-    Name: notionProperty.title(input.name),
-    Status: notionProperty.richText(input.status),
-    Phase: notionProperty.richText(input.phase),
-    Priority: notionProperty.richText(input.priority),
-    "Next Action": notionProperty.richText(input.nextAction),
-    ...(input.due ? { Due: notionProperty.date(input.due) } : {}),
-    Owner: notionProperty.relation(personPageId),
-  });
+export async function createTask(_input: unknown, _personPageId: string): Promise<never> {
+  throw V3_PAUSED(
+    "Creating Moves from the app",
+    "this branch is read-only. Notion writes; the repo remembers; the site reads.",
+  );
 }
 
-export async function listCheckIns(personPageId: string) {
-  const records = await listDataSourceRecords(notionConfig.dataSourceIds.checkIns);
-  return records.filter(record => {
-    const relation = record.properties.Person?.relation ?? [];
-    return relation.some((item: { id: string }) => item.id === personPageId);
-  }).sort((left, right) => Date.parse(right.week || right.start || "1970-01-01") - Date.parse(left.week || left.start || "1970-01-01"));
+export async function listCheckIns(_personPageId: string): Promise<never> {
+  throw V3_PAUSED("Check-ins", "no database home assigned yet. The budget is five databases.");
 }
 
-function getWeekStart() {
-  const date = new Date();
-  const day = date.getDay();
-  const mondayOffset = day === 0 ? -6 : 1 - day;
-  date.setDate(date.getDate() + mondayOffset);
-  return date.toISOString().slice(0, 10);
+export async function createCheckIn(
+  _input: unknown,
+  _personPageId: string,
+  _userName: string | null,
+): Promise<never> {
+  throw V3_PAUSED("Check-ins", "no database home assigned yet. The budget is five databases.");
 }
 
-export async function createCheckIn(input: CheckInInput, personPageId: string, userName: string | null) {
-  const week = getWeekStart();
-  return createPage(notionConfig.dataSourceIds.checkIns, {
-    Name: notionProperty.title(`${userName ?? "Team member"} · ${week}`),
-    Mood: notionProperty.richText(input.mood),
-    Absorption: notionProperty.richText(input.absorption),
-    "Body Status": notionProperty.richText(input.bodyStatus),
-    Week: notionProperty.date(week),
-    "Share Level": notionProperty.richText(input.shareLevel),
-    Reflection: notionProperty.richText(input.reflection),
-    Notes: notionProperty.richText(`Follow-up needed: ${input.followUpNeeded ? "yes" : "no"}`),
-    Person: notionProperty.relation(personPageId),
-  });
+export async function listNeeds(): Promise<never> {
+  throw V3_PAUSED("Needs", "these stay private and page-based until the permission model is proven.");
 }
 
-export async function listNeeds() {
-  return listDataSourceRecords(notionConfig.dataSourceIds.needs);
-}
-
-export async function listDecisions() {
-  return listDataSourceRecords(notionConfig.dataSourceIds.decisions);
+export async function listDecisions(): Promise<never> {
+  throw V3_PAUSED("Decisions", "these stay private and page-based until the permission model is proven.");
 }
