@@ -103,7 +103,7 @@ export default function TeamPortal() {
       const key = move.status?.trim() || "Unsorted";
       groups.set(key, [...(groups.get(key) ?? []), move]);
     }
-    return [...groups.entries()].sort(
+    return Array.from(groups.entries()).sort(
       ([left], [right]) =>
         (order.indexOf(left) + 1 || 99) - (order.indexOf(right) + 1 || 99),
     );
