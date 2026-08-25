@@ -2,6 +2,19 @@ import { describe, expect, it } from "vitest";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 
+/**
+ * v3 access boundaries.
+ *
+ * The v3 router exposes exactly two public reads and four protected team
+ * reads. There is no admin router, no tasks router, no check-ins router,
+ * and no mutations. See the comment block at the top of server/routers.ts.
+ *
+ * These tests assert the boundary, not the Notion payload. A route that
+ * fails because a Notion credential is missing is still a route that passed
+ * its auth gate, so the protected-access assertions check only that the
+ * error is NOT an auth rejection.
+ */
+
 function createContext(role: "user" | "admin" | null): TrpcContext {
   return {
     user: role
@@ -22,42 +35,85 @@ function createContext(role: "user" | "admin" | null): TrpcContext {
   };
 }
 
-describe("Create Well server access boundaries", () => {
-  it("rejects unauthenticated team access before requesting Notion data", async () => {
+function procedurePaths(): string[] {
+  return Object.keys((appRouter as unknown as { _def: { procedures: Record<string, unknown> } })._def.procedures);
+}
+
+async function errorCodeOf(run: () => Promise<unknown>): Promise<string | null> {
+  try {
+    await run();
+    return null;
+  } catch (error) {
+    return (error as { code?: string }).code ?? "UNKNOWN";
+  }
+}
+
+describe("v3 public surface", () => {
+  it("never rejects an anonymous caller for auth reasons", async () => {
     const caller = appRouter.createCaller(createContext(null));
 
-    // Every route under createWell.team is a protectedProcedure. An anonymous
-    // caller must be turned away here, before any Notion request is made.
-    await expect(caller.createWell.team.profile()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
-    await expect(caller.createWell.team.programCalendar()).rejects.toMatchObject({
-      code: "UNAUTHORIZED",
-    });
-    await expect(caller.createWell.team.editorialPipeline()).rejects.toMatchObject({
-      code: "UNAUTHORIZED",
-    });
-    await expect(caller.createWell.team.moves.list()).rejects.toMatchObject({
-      code: "UNAUTHORIZED",
-    });
+    expect(await errorCodeOf(() => caller.createWell.public.content())).not.toBe("UNAUTHORIZED");
+    expect(await errorCodeOf(() => caller.createWell.public.flows())).not.toBe("UNAUTHORIZED");
   });
 
-  /**
-   * Skipped, not deleted.
-   *
-   * This test asserted that a signed-in non-admin got FORBIDDEN from
-   * admin.needs and admin.decisions. Those were the only role-gated routes in
-   * the application, and v3 ships no `admin` router at all — Needs and
-   * Decisions are paused as private, page-based work until the permission model
-   * is proven. Every surviving route is either public or merely authenticated,
-   * so there is currently no FORBIDDEN boundary to assert.
-   *
-   * Restore this the moment a role-gated route returns. The createContext
-   * helper still accepts "admin" and "user", so re-enabling is a one-line
-   * change plus the new route names. Leaving it skipped keeps the missing
-   * boundary visible in every test run instead of quietly dropping the
-   * guarantee.
-   */
-  it.skip("rejects non-admin access to role-gated routes before requesting Notion data", async () => {
-    const caller = appRouter.createCaller(createContext("user"));
-    void caller;
+  it("exposes exactly two public procedures", () => {
+    const publicPaths = procedurePaths().filter(path => path.startsWith("createWell.public."));
+
+    expect(publicPaths.sort()).toEqual(["createWell.public.content", "createWell.public.flows"]);
+  });
+});
+
+describe("v3 team surface", () => {
+  const routes = [
+    ["profile", (caller: ReturnType<typeof appRouter.createCaller>) => caller.createWell.team.profile()],
+    ["programCalendar", (caller: ReturnType<typeof appRouter.createCaller>) => caller.createWell.team.programCalendar()],
+    ["editorialPipeline", (caller: ReturnType<typeof appRouter.createCaller>) => caller.createWell.team.editorialPipeline()],
+    ["moves.list", (caller: ReturnType<typeof appRouter.createCaller>) => caller.createWell.team.moves.list()],
+  ] as const;
+
+  for (const [name, call] of routes) {
+    it(`rejects an anonymous caller on team.${name}`, async () => {
+      const caller = appRouter.createCaller(createContext(null));
+
+      expect(await errorCodeOf(() => call(caller))).toBe("UNAUTHORIZED");
+    });
+  }
+
+  for (const [name, call] of routes) {
+    it(`admits a signed-in non-admin on team.${name}`, async () => {
+      const caller = appRouter.createCaller(createContext("user"));
+
+      // May still fail on Notion configuration. It must not fail on auth.
+      const code = await errorCodeOf(() => call(caller));
+      expect(code).not.toBe("UNAUTHORIZED");
+      expect(code).not.toBe("FORBIDDEN");
+    });
+  }
+});
+
+describe("v3 removals stay removed", () => {
+  it("has no admin router", () => {
+    expect(procedurePaths().filter(path => path.startsWith("createWell.admin"))).toEqual([]);
+  });
+
+  it("has no tasks or check-ins routes", () => {
+    const retired = procedurePaths().filter(
+      path => path.includes(".tasks") || path.includes(".checkIns") || path.includes(".offers"),
+    );
+
+    expect(retired).toEqual([]);
+  });
+
+  it("exposes no mutation under createWell", () => {
+    const procedures = (appRouter as unknown as {
+      _def: { procedures: Record<string, { _def?: { type?: string } }> };
+    })._def.procedures;
+
+    const mutations = Object.entries(procedures)
+      .filter(([path]) => path.startsWith("createWell."))
+      .filter(([, procedure]) => procedure?._def?.type === "mutation")
+      .map(([path]) => path);
+
+    expect(mutations).toEqual([]);
   });
 });
