@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const originalToken = process.env.NOTION_API_TOKEN;
-
 afterEach(() => {
-  process.env.NOTION_API_TOKEN = originalToken;
+  // Restore the original token, or delete if unset so we don't coerce
+  // undefined to the string "undefined" in process.env.
+  if ("NOTION_API_TOKEN" in process.env) {
+    delete process.env.NOTION_API_TOKEN;
+  }
   vi.restoreAllMocks();
   vi.resetModules();
 });

@@ -4,9 +4,28 @@ const NOTION_API_BASE_URL = "https://api.notion.com/v1";
 const NOTION_VERSION = "2025-09-03";
 const DEFAULT_PAGE_SIZE = 100;
 
+/** HTTP status codes that are safe to retry automatically. */
+const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504, 529]);
+const MAX_RETRIES = 5;
+const RETRY_BASE_MS = 500;
+const RETRY_MAX_MS = 30_000;
+
 type NotionRequestInit = Omit<RequestInit, "headers"> & {
   headers?: Record<string, string>;
 };
+
+function retryDelayMs(attempt: number, retryAfterHeader?: string | null): number {
+  if (retryAfterHeader) {
+    const seconds = Number(retryAfterHeader);
+    if (Number.isFinite(seconds) && seconds > 0) {
+      return Math.min(seconds * 1000, RETRY_MAX_MS);
+    }
+  }
+  // Exponential backoff with up to 50% random jitter.
+  const exponential = RETRY_BASE_MS * 2 ** attempt;
+  const jitter = Math.random() * 0.5 * exponential;
+  return Math.min(exponential + jitter, RETRY_MAX_MS);
+}
 
 export class NotionApiError extends Error {
   constructor(
@@ -25,23 +44,36 @@ export async function notionRequest<T>(
 ): Promise<T> {
   assertNotionConfiguration();
 
-  const response = await fetch(`${NOTION_API_BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${notionConfig.apiToken}`,
-      "Notion-Version": NOTION_VERSION,
-      "Content-Type": "application/json",
-      ...init.headers,
-    },
-  });
+  let attempt = 0;
+  while (true) {
+    const response = await fetch(`${NOTION_API_BASE_URL}${path}`, {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${notionConfig.apiToken}`,
+        "Notion-Version": NOTION_VERSION,
+        "Content-Type": "application/json",
+        ...init.headers,
+      },
+    });
 
-  const body = await response.json().catch(() => undefined);
-  if (!response.ok) {
+    if (response.ok) {
+      const body = await response.json().catch(() => undefined);
+      return body as T;
+    }
+
+    if (RETRYABLE_STATUSES.has(response.status) && attempt < MAX_RETRIES) {
+      const retryAfter = response.headers.get("Retry-After");
+      const delay = retryDelayMs(attempt, retryAfter);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      attempt += 1;
+      continue;
+    }
+
+    const body = await response.json().catch(() => undefined);
     throw new NotionApiError("Notion request failed", response.status, body);
   }
-
-  return body as T;
 }
+
 
 export async function queryDataSource<T>(
   dataSourceId: string,
@@ -76,7 +108,16 @@ export async function queryAllDataSourceResults<T>(
     });
 
     results.push(...(response.results ?? []));
-    nextCursor = response.has_more ? (response.next_cursor ?? null) : null;
+    if (response.has_more) {
+      if (!response.next_cursor) {
+        throw new Error(
+          "Notion returned has_more: true without a next_cursor — cannot paginate safely."
+        );
+      }
+      nextCursor = response.next_cursor;
+    } else {
+      nextCursor = null;
+    }
   } while (nextCursor);
 
   return results;
@@ -105,7 +146,16 @@ export async function listAllBlockChildren<T>(blockId: string): Promise<T[]> {
       nextCursor
     );
     results.push(...(response.results ?? []));
-    nextCursor = response.has_more ? (response.next_cursor ?? null) : null;
+    if (response.has_more) {
+      if (!response.next_cursor) {
+        throw new Error(
+          "Notion returned has_more: true without a next_cursor — cannot paginate safely."
+        );
+      }
+      nextCursor = response.next_cursor;
+    } else {
+      nextCursor = null;
+    }
   } while (nextCursor);
 
   return results;

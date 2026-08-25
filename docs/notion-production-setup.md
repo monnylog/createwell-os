@@ -79,3 +79,67 @@ The repository workflow for sync should:
 - Add `NOTION_API_TOKEN` and `NOTION_WEBHOOK_VERIFICATION_TOKEN` as server-only secrets where needed.
 - Run `pnpm notion:sync:dry-run` and verify the reported creates, updates, deletes, skips, and errors.
 - Run `pnpm notion:sync` only after the dry-run is clean.
+
+## 8. Supported and unsupported Notion block types
+
+The sync serializes the following block types:
+
+| Block type            | Serialized as                            |
+| --------------------- | ---------------------------------------- |
+| `paragraph`           | Plain paragraph text                     |
+| `heading_1`           | `# heading`                              |
+| `heading_2`           | `## heading`                             |
+| `heading_3`           | `### heading`                            |
+| `bulleted_list_item`  | `- item` (with nested indentation)       |
+| `numbered_list_item`  | `1. item` (with nested indentation)      |
+| `to_do`               | `- [ ] / - [x] item`                     |
+| `quote`               | `> blockquote`                           |
+| `callout`             | `> callout` (icon is dropped)            |
+| `divider`             | `---`                                    |
+| `code`                | Fenced code block with language hint     |
+| `image`               | `![caption](url)` or comment placeholder |
+| `video`               | Link or comment placeholder              |
+| `audio`               | Link or comment placeholder              |
+| `file`                | Link or comment placeholder              |
+| `bookmark`            | Link or comment placeholder              |
+| `embed`               | Link or comment placeholder              |
+| `table`               | Delegates to `table_row` children        |
+| `table_row`           | Pipe-delimited Markdown table row        |
+| `toggle`              | HTML `<details>/<summary>`               |
+| `child_page`          | Comment placeholder (not traversed)      |
+| `synced_block`        | Children inline (original) or comment    |
+
+The following block types are **not supported** and will fail the sync rather than
+silently drop content. Add a serializer before using pages that contain them:
+
+- `child_database` — inline database; no safe text rendering
+- `breadcrumb`, `table_of_contents`, `column`, `column_list`
+- `link_to_page`, `link_preview`
+- `pdf`, `equation` (top-level block)
+- Any undocumented or future block types
+
+## 9. Generated output consumer
+
+`docs/generated/notion-content` is **not wired into the frontend**. The sync
+workflow writes `.mdx` files there but no part of the app currently reads from
+that directory. The files are committed to the repository as a plain data
+archive. Any downstream consumption (e.g., an MDX-based static site, a docs
+site, or a content pipeline) must be wired up explicitly and is outside the
+scope of this repository.
+
+Do not claim production readiness for generated content until a consumer
+exists and has been tested end-to-end.
+
+## 10. Branch protection requirements
+
+The sync workflow's scheduled runs are restricted to the repository default
+branch (via the `if:` condition on the job). To prevent accidental commits to
+other branches from `workflow_dispatch` runs, configure the following branch
+protection rules on the default branch:
+
+- Require pull request reviews before merging
+- Require status checks to pass before merging (include the `sync` job)
+- Restrict who can push directly to the default branch
+
+Add these rules in **Settings → Branches → Branch protection rules** for the
+default branch before enabling the sync workflow in production.

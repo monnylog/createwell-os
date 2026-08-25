@@ -177,8 +177,29 @@ export function buildFrontmatter(fields: Record<string, unknown>): string {
   return `---\n${lines.join("\n")}\n---`;
 }
 
+/** Allowlist safe URL schemes and encode unsafe characters in the destination. */
+function sanitizeMarkdownUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      return null;
+    }
+    // Encode parentheses that would break the Markdown link syntax.
+    return url.replace(/\(/g, "%28").replace(/\)/g, "%29");
+  } catch {
+    return null;
+  }
+}
+
 function escapeInlineMarkdown(value: string): string {
-  return value.replace(/\\/g, "\\\\").replace(/`/g, "\\`");
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/`/g, "\\`")
+    // Escape MDX/JSX control characters so generated output is safe.
+    .replace(/</g, "\\<")
+    .replace(/>/g, "\\>")
+    .replace(/\{/g, "\\{")
+    .replace(/\}/g, "\\}");
 }
 
 function serializeRichText(richText: NotionRichText[] | undefined): string {
@@ -198,8 +219,11 @@ function serializeRichText(richText: NotionRichText[] | undefined): string {
       if (fragment.annotations?.strikethrough) text = `~~${text}~~`;
       if (fragment.annotations?.underline) text = `<u>${text}</u>`;
 
-      const link = fragment.text?.link?.url ?? fragment.href ?? null;
-      if (link) text = `[${text}](${link})`;
+      const rawLink = fragment.text?.link?.url ?? fragment.href ?? null;
+      if (rawLink) {
+        const safeLink = sanitizeMarkdownUrl(rawLink);
+        if (safeLink) text = `[${text}](${safeLink})`;
+      }
 
       return text;
     })
@@ -272,10 +296,92 @@ function serializeBlock(block: NotionBlockTree, depth = 0): string {
         rich_text?: NotionRichText[];
         language?: string;
       }>(block);
-      const content = serializeRichText(data.rich_text);
+      // Use raw plain text for code blocks — do not apply inline escaping or
+      // annotation markup, which would corrupt code such as Windows paths or
+      // literal backticks.
+      const rawContent = (data.rich_text ?? [])
+        .map(fragment => fragment.plain_text ?? fragment.text?.content ?? "")
+        .join("");
       const language =
         data.language && data.language !== "plain text" ? data.language : "";
-      return `${indent}\`\`\`${language}\n${content}\n${indent}\`\`\``;
+      // Choose a fence length that cannot occur in the content.
+      const maxTicks = Math.max(2, ...Array.from(rawContent.matchAll(/`+/g), m => m[0].length));
+      const fence = "`".repeat(maxTicks + 1);
+      return `${indent}${fence}${language}\n${rawContent}\n${indent}${fence}`;
+    }
+    case "image": {
+      const data = blockData<{
+        type?: string;
+        external?: { url?: string };
+        file?: { url?: string };
+        caption?: NotionRichText[];
+      }>(block);
+      const url = data.type === "external"
+        ? (data.external?.url ?? "")
+        : (data.file?.url ?? "");
+      const caption = serializeRichText(data.caption);
+      const safeUrl = sanitizeMarkdownUrl(url) ?? "";
+      return safeUrl
+        ? `${indent}![${caption}](${safeUrl})`
+        : `${indent}<!-- image: ${escapeInlineMarkdown(caption || url || block.id)} -->`;
+    }
+    case "video":
+    case "audio":
+    case "file": {
+      const data = blockData<{
+        type?: string;
+        external?: { url?: string };
+        file?: { url?: string };
+        caption?: NotionRichText[];
+      }>(block);
+      const url = data.type === "external"
+        ? (data.external?.url ?? "")
+        : (data.file?.url ?? "");
+      const caption = serializeRichText(data.caption) || url;
+      const safeUrl = sanitizeMarkdownUrl(url);
+      return safeUrl
+        ? `${indent}[${caption}](${safeUrl})`
+        : `${indent}<!-- ${block.type}: ${escapeInlineMarkdown(caption || block.id)} -->`;
+    }
+    case "bookmark":
+    case "embed": {
+      const data = blockData<{ url?: string; caption?: NotionRichText[] }>(block);
+      const url = data.url ?? "";
+      const caption = serializeRichText(data.caption) || url;
+      const safeUrl = sanitizeMarkdownUrl(url);
+      return safeUrl
+        ? `${indent}[${caption}](${safeUrl})`
+        : `${indent}<!-- ${block.type}: ${escapeInlineMarkdown(caption || block.id)} -->`;
+    }
+    case "table": {
+      // Render children (table_row blocks) if present, otherwise emit a comment.
+      if (children) return children;
+      return `${indent}<!-- table: (empty) -->`;
+    }
+    case "table_row": {
+      const data = blockData<{ cells?: NotionRichText[][] }>(block);
+      const cells = (data.cells ?? []).map(cell => serializeRichText(cell));
+      return `${indent}| ${cells.join(" | ")} |`;
+    }
+    case "toggle": {
+      const data = blockData<{ rich_text?: NotionRichText[] }>(block);
+      const summary = serializeRichText(data.rich_text);
+      const body = children ? `\n${children}\n` : "";
+      return `${indent}<details><summary>${summary}</summary>${body}\n${indent}</details>`;
+    }
+    case "child_page": {
+      const data = blockData<{ title?: string }>(block);
+      const title = escapeInlineMarkdown(data.title ?? block.id);
+      return `${indent}<!-- child_page: ${title} -->`;
+    }
+    case "synced_block": {
+      // Render synced block children inline (original block) or emit comment
+      // (pointer block—content lives in the original).
+      const data = blockData<{ synced_from?: { block_id?: string } | null }>(block);
+      if (data.synced_from?.block_id) {
+        return `${indent}<!-- synced_block: content lives in block ${data.synced_from.block_id} -->`;
+      }
+      return children ? children : `${indent}<!-- synced_block: (empty) -->`;
     }
     default:
       throw new Error(
@@ -293,6 +399,28 @@ export function serializeBlocks(blocks: NotionBlockTree[], depth = 0): string {
   return content.replace(/^\n+|\n+$/g, "");
 }
 
+/** Limit the number of concurrent Notion block-children requests. */
+const BLOCK_CONCURRENCY = 5;
+
+async function runConcurrent<T>(
+  tasks: (() => Promise<T>)[],
+  concurrency: number
+): Promise<T[]> {
+  const results: T[] = new Array(tasks.length);
+  let index = 0;
+
+  async function worker() {
+    while (index < tasks.length) {
+      const current = index++;
+      results[current] = await tasks[current]!();
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(concurrency, tasks.length) }, worker);
+  await Promise.all(workers);
+  return results;
+}
+
 async function fetchBlockTree(
   blockId: string,
   listChildren: SyncDependencies["listBlockChildren"],
@@ -306,14 +434,16 @@ async function fetchBlockTree(
   }
 
   const blocks = await listChildren(blockId);
-  return Promise.all(
-    blocks.map(async block => ({
+  const withChildren = await runConcurrent(
+    blocks.map(block => async () => ({
       ...block,
       children: block.has_children
         ? await fetchBlockTree(block.id, listChildren, depth + 1, maxDepth)
         : [],
-    }))
+    })),
+    BLOCK_CONCURRENCY
   );
+  return withChildren;
 }
 
 function fallbackBody(record: CreateWellRecord): string {
@@ -597,8 +727,13 @@ export async function syncPublishedContentToMdx(
     }
 
     const desired = desiredRecords.get(relativePath);
+    // If the desired record for this path matches the stored page, it's up to date.
     if (desired?.pageId === existing.pageId) continue;
-    if (desiredPageIds.has(existing.pageId) && !desired) {
+    // If the path already has a desired record for a different page, the create/update
+    // action will replace the file — do not also schedule a delete for the same path.
+    if (desired) continue;
+    if (desiredPageIds.has(existing.pageId)) {
+      // Page still published but mapped to a different slug — stale file.
       actions.push({
         kind: "delete",
         path: relativePath,
@@ -607,14 +742,13 @@ export async function syncPublishedContentToMdx(
       });
       continue;
     }
-    if (!desiredPageIds.has(existing.pageId)) {
-      actions.push({
-        kind: "delete",
-        path: relativePath,
-        pageId: existing.pageId,
-        message: `Delete unpublished generated file ${relativePath}.`,
-      });
-    }
+    // Page was unpublished or removed.
+    actions.push({
+      kind: "delete",
+      path: relativePath,
+      pageId: existing.pageId,
+      message: `Delete unpublished generated file ${relativePath}.`,
+    });
   }
 
   if (actions.some(action => action.kind === "error")) {

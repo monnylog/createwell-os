@@ -232,21 +232,20 @@ describe("notion sync", () => {
   it("fails clearly on unsupported blocks that could lose content", async () => {
     const targetDir = await makeTempDir();
 
+    // "equation" (top-level, not inline) and "child_database" are examples of
+    // block types that have no safe serializer and must still fail closed.
     const result = await syncPublishedContentToMdx({
       targetDir,
       dependencies: {
         listPublishedContentRecords: async () => [
-          pageRecord("page-1", "Image Post"),
+          pageRecord("page-1", "Database Post"),
         ],
         listBlockChildren: blockMap({
           "page-1": [
             {
-              id: "img-1",
-              type: "image",
-              image: {
-                type: "external",
-                external: { url: "https://example.com/a.png" },
-              },
+              id: "db-1",
+              type: "child_database",
+              child_database: { title: "Inline database" },
             },
           ],
         }),
@@ -256,7 +255,7 @@ describe("notion sync", () => {
     expect(result.applied).toBe(false);
     expect(result.counts.error).toBe(1);
     expect(result.actions[0]?.message).toContain(
-      'Unsupported Notion block type "image"'
+      'Unsupported Notion block type "child_database"'
     );
   });
 
