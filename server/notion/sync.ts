@@ -354,9 +354,19 @@ function serializeBlock(block: NotionBlockTree, depth = 0): string {
         : `${indent}<!-- ${block.type}: ${escapeInlineMarkdown(caption || block.id)} -->`;
     }
     case "table": {
-      // Render children (table_row blocks) if present, otherwise emit a comment.
-      if (children) return children;
-      return `${indent}<!-- table: (empty) -->`;
+      if (!block.children.length) return `${indent}<!-- table: (empty) -->`;
+      // Determine column count from the first row and inject the GFM
+      // separator row required between the header and body rows.
+      const firstRow = block.children[0] as NotionBlockTree & {
+        table_row?: { cells?: unknown[] };
+      };
+      const colCount = (firstRow?.table_row?.cells ?? []).length || 1;
+      const separator = `${indent}| ${Array(colCount).fill("---").join(" | ")} |`;
+      const rows = children.split("\n\n");
+      const withSeparator = [rows[0], separator, ...rows.slice(1)]
+        .filter(Boolean)
+        .join("\n");
+      return withSeparator;
     }
     case "table_row": {
       const data = blockData<{ cells?: NotionRichText[][] }>(block);
