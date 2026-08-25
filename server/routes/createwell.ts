@@ -2,7 +2,10 @@ import type { Express, Request, Response } from "express";
 import { sdk } from "../_core/sdk";
 import { invalidatePublicCache, readPublicCache } from "../notion/cache";
 import { notionConfig } from "../notion/config";
-import { IdempotencyStore, verifyNotionWebhookSignature } from "../notion/security";
+import {
+  IdempotencyStore,
+  verifyNotionWebhookSignature,
+} from "../notion/security";
 import { assertMoneyNeverPublic } from "../notion/v3-guards";
 import {
   getApprovedContent,
@@ -36,7 +39,9 @@ const TOPIC_WELL_WINDOW_MS = 15 * 60 * 1_000;
 export function consumeTopicWellRateLimit(ip: string) {
   const now = Date.now();
   const windowStart = now - TOPIC_WELL_WINDOW_MS;
-  const attempts = (topicWellRateLimits.get(ip) ?? []).filter(timestamp => timestamp > windowStart);
+  const attempts = (topicWellRateLimits.get(ip) ?? []).filter(
+    timestamp => timestamp > windowStart
+  );
   if (attempts.length >= TOPIC_WELL_RATE_LIMIT) return false;
   attempts.push(now);
   topicWellRateLimits.set(ip, attempts);
@@ -64,7 +69,8 @@ async function requireAuthenticatedUser(req: Request, res: Response) {
 
 function errorResponse(error: unknown, res: Response) {
   console.error("[Create Well] Server route failed", error);
-  const message = error instanceof Error ? error.message : "Unexpected server error.";
+  const message =
+    error instanceof Error ? error.message : "Unexpected server error.";
   res.status(500).json({ error: message });
 }
 
@@ -83,7 +89,9 @@ export function registerCreateWellRoutes(app: Express) {
 
   app.get("/api/public/flows", async (_req, res) => {
     try {
-      res.json({ items: await readPublicCache("flows", getUpcomingPublicFlows) });
+      res.json({
+        items: await readPublicCache("flows", getUpcomingPublicFlows),
+      });
     } catch (error) {
       errorResponse(error, res);
     }
@@ -108,7 +116,7 @@ export function registerCreateWellRoutes(app: Express) {
       !verifyNotionWebhookSignature(
         rawBody,
         req.header("x-notion-signature"),
-        notionConfig.webhookVerificationToken,
+        notionConfig.webhookVerificationToken
       )
     ) {
       res.status(401).json({ error: "Invalid Notion webhook signature." });
@@ -116,10 +124,15 @@ export function registerCreateWellRoutes(app: Express) {
     }
 
     const sourceId =
-      req.body?.data_source_id ?? req.body?.entity?.data_source_id ?? req.body?.parent?.data_source_id;
+      req.body?.data_source_id ??
+      req.body?.entity?.data_source_id ??
+      req.body?.parent?.data_source_id;
 
     // Only CONTENT and FLOWS feed the public cache. MONEY must never be here.
-    const publicSourceIds = [notionConfig.dataSourceIds.content, notionConfig.dataSourceIds.flows];
+    const publicSourceIds = [
+      notionConfig.dataSourceIds.content,
+      notionConfig.dataSourceIds.flows,
+    ];
     for (const id of publicSourceIds) {
       assertMoneyNeverPublic(id, notionConfig.dataSourceIds.money);
     }
@@ -163,7 +176,9 @@ export function registerCreateWellRoutes(app: Express) {
   app.get("/api/team/content", async (req, res) => {
     if (!(await requireAuthenticatedUser(req, res))) return;
     try {
-      res.json({ items: await listDataSourceRecords(notionConfig.dataSourceIds.content) });
+      res.json({
+        items: await listDataSourceRecords(notionConfig.dataSourceIds.content),
+      });
     } catch (error) {
       errorResponse(error, res);
     }

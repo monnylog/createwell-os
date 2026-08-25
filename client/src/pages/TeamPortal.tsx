@@ -93,7 +93,7 @@ export default function TeamPortal() {
 
   const needsMarketing = useMemo(
     () => flows.filter(flow => marketingOverdue(flow, today, fourWeeksOut)),
-    [flows, today, fourWeeksOut],
+    [flows, today, fourWeeksOut]
   );
 
   const moveGroups = useMemo(() => {
@@ -105,7 +105,7 @@ export default function TeamPortal() {
     }
     return Array.from(groups.entries()).sort(
       ([left], [right]) =>
-        (order.indexOf(left) + 1 || 99) - (order.indexOf(right) + 1 || 99),
+        (order.indexOf(left) + 1 || 99) - (order.indexOf(right) + 1 || 99)
     );
   }, [moves]);
 
@@ -121,7 +121,8 @@ export default function TeamPortal() {
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[#527174]">
             A quiet shared surface for what is gathering and what needs a human.
-            Everything here is read from Notion. To change something, change it there.
+            Everything here is read from Notion. To change something, change it
+            there.
           </p>
         </div>
         <Badge className="rounded-full bg-[#d6ebe5] px-3 py-1 text-[#155b5e] hover:bg-[#d6ebe5]">
@@ -149,7 +150,8 @@ export default function TeamPortal() {
                     {profileQuery.data?.name}
                   </h2>
                   <p className="mt-2 text-sm text-[#426568]">
-                    {profileQuery.data?.role} · linked by {profileQuery.data?.linkedBy}
+                    {profileQuery.data?.role} · linked by{" "}
+                    {profileQuery.data?.linkedBy}
                   </p>
                 </>
               )}
@@ -168,7 +170,9 @@ export default function TeamPortal() {
                 <div className="mt-3 h-6 w-32 animate-pulse rounded bg-[#efdcc4]" />
               ) : needsMarketing.length === 0 ? (
                 <>
-                  <h2 className="mt-2 font-serif text-2xl text-[#5c3d16]">Clear</h2>
+                  <h2 className="mt-2 font-serif text-2xl text-[#5c3d16]">
+                    Clear
+                  </h2>
                   <p className="mt-2 text-sm text-[#7a5a30]">
                     Nothing inside four weeks is still waiting to be promoted.
                   </p>
@@ -223,7 +227,10 @@ export default function TeamPortal() {
         {movesQuery.isLoading ? (
           <div className="mt-7 grid gap-3 lg:grid-cols-3">
             {[1, 2, 3].map(item => (
-              <div key={item} className="h-32 animate-pulse rounded-xl bg-white/10" />
+              <div
+                key={item}
+                className="h-32 animate-pulse rounded-xl bg-white/10"
+              />
             ))}
           </div>
         ) : movesQuery.error ? (
@@ -246,8 +253,13 @@ export default function TeamPortal() {
                 </p>
                 <div className="space-y-2">
                   {group.map(move => (
-                    <article key={move.id} className="rounded-lg bg-white/10 p-3">
-                      <p className="text-sm font-semibold">{titleForRecord(move)}</p>
+                    <article
+                      key={move.id}
+                      className="rounded-lg bg-white/10 p-3"
+                    >
+                      <p className="text-sm font-semibold">
+                        {titleForRecord(move)}
+                      </p>
                       <p className="mt-1 text-xs text-white/65">
                         {move.type || "Move"}
                         {move.due ? ` · due ${move.due}` : ""}
@@ -282,7 +294,9 @@ export default function TeamPortal() {
             {calendarQuery.isLoading ? (
               <Loader2 className="h-5 w-5 animate-spin text-[#277b7d]" />
             ) : calendarQuery.error ? (
-              <p className="text-sm text-[#ad443c]">The calendar could not load.</p>
+              <p className="text-sm text-[#ad443c]">
+                The calendar could not load.
+              </p>
             ) : flows.length === 0 ? (
               <p className="text-sm text-[#527174]">
                 No Flows scheduled. The well is quiet.
@@ -294,7 +308,9 @@ export default function TeamPortal() {
                   className="flex justify-between gap-4 border-t border-[#e2ece8] pt-3"
                 >
                   <div>
-                    <p className="font-medium text-[#153f43]">{titleForRecord(flow)}</p>
+                    <p className="font-medium text-[#153f43]">
+                      {titleForRecord(flow)}
+                    </p>
                     <p className="mt-1 text-xs text-[#527174]">
                       {flow.type || "Flow"} · {flow.date || "no date set"}
                       {flow.venue ? ` · ${flow.venue}` : ""}

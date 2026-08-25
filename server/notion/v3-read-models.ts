@@ -27,7 +27,7 @@ export const FLOW_TYPES = [
 export type FlowType = (typeof FLOW_TYPES)[number];
 
 /** Layers that may ever appear on a public surface. `Internal` never does. */
-export const PUBLIC_FLOW_TYPES = FLOW_TYPES.filter((t) => t !== "Internal");
+export const PUBLIC_FLOW_TYPES = FLOW_TYPES.filter(t => t !== "Internal");
 
 export const FLOW_STATUSES = [
   "Idea",
@@ -70,6 +70,25 @@ export type FlowPhase = (typeof FLOW_PHASES)[number];
 
 /** Phases that mean promotion has not started yet. */
 export const PRE_MARKETING_PHASES: FlowPhase[] = ["Cohoe", "Concepting"];
+
+/** Team-only: the arc of work that shaped how an offering was designed. */
+export const OFFERING_ARC_OPTIONS = [
+  "Sense",
+  "Name",
+  "Design",
+  "Practice",
+  "Integrate",
+  "Sustain",
+] as const;
+export type OfferingArc = (typeof OFFERING_ARC_OPTIONS)[number];
+
+/** Team-only: where a participant is expected to land after the offering. */
+export const READINESS_OUTCOME_OPTIONS = [
+  "Not yet",
+  "Start here",
+  "Ready for depth",
+] as const;
+export type ReadinessOutcome = (typeof READINESS_OUTCOME_OPTIONS)[number];
 
 export const MOVE_STATUSES = ["Now", "Next", "Done", "Dropped"] as const;
 export type MoveStatus = (typeof MOVE_STATUSES)[number];
@@ -136,6 +155,9 @@ export type TeamFlow = {
   venue: string | null;
   mediaCutoff: string | null;
   driveFolder: string | null;
+  offeringArc: OfferingArc | null;
+  readinessOutcome: ReadinessOutcome | null;
+  thankyouDue: string | null;
 };
 
 export type TeamMove = {
@@ -183,7 +205,8 @@ function firstRelation(row: RawRow, key: string): string | null {
   if (typeof value === "string" && value.startsWith("[")) {
     try {
       const parsed = JSON.parse(value) as unknown;
-      if (Array.isArray(parsed) && typeof parsed[0] === "string") return parsed[0];
+      if (Array.isArray(parsed) && typeof parsed[0] === "string")
+        return parsed[0];
     } catch {
       return null;
     }
@@ -193,11 +216,13 @@ function firstRelation(row: RawRow, key: string): string | null {
 
 function relations(row: RawRow, key: string): string[] {
   const value = row[key];
-  if (Array.isArray(value)) return value.filter((v): v is string => typeof v === "string");
+  if (Array.isArray(value))
+    return value.filter((v): v is string => typeof v === "string");
   if (typeof value === "string" && value.startsWith("[")) {
     try {
       const parsed = JSON.parse(value) as unknown;
-      if (Array.isArray(parsed)) return parsed.filter((v): v is string => typeof v === "string");
+      if (Array.isArray(parsed))
+        return parsed.filter((v): v is string => typeof v === "string");
     } catch {
       return [];
     }
@@ -205,8 +230,13 @@ function relations(row: RawRow, key: string): string[] {
   return [];
 }
 
-function oneOf<T extends string>(value: string | null, allowed: readonly T[]): T | null {
-  return value !== null && (allowed as readonly string[]).includes(value) ? (value as T) : null;
+function oneOf<T extends string>(
+  value: string | null,
+  allowed: readonly T[]
+): T | null {
+  return value !== null && (allowed as readonly string[]).includes(value)
+    ? (value as T)
+    : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -214,7 +244,7 @@ function oneOf<T extends string>(value: string | null, allowed: readonly T[]): T
 // ---------------------------------------------------------------------------
 
 function quoted(values: readonly string[]): string {
-  return values.map((v) => `'${v.replace(/'/g, "''")}'`).join(", ");
+  return values.map(v => `'${v.replace(/'/g, "''")}'`).join(", ");
 }
 
 function source(id: string): string {
@@ -231,12 +261,12 @@ function source(id: string): string {
  */
 export function publicContentSql(): string {
   return [
-    "SELECT url, \"Name\", \"Content Type\", \"Copy\",",
-    "       \"date:Publish Date:start\", \"userDefined:URL\", \"Final?\"",
+    'SELECT url, "Name", "Content Type", "Copy",',
+    '       "date:Publish Date:start", "userDefined:URL", "Final?"',
     `FROM ${source(V3_DATA_SOURCES.content)}`,
     "WHERE \"Status\" = 'Published'",
     "  AND \"Audience\" = 'Public'",
-    "ORDER BY \"date:Publish Date:start\" DESC",
+    'ORDER BY "date:Publish Date:start" DESC',
   ].join("\n");
 }
 
@@ -252,26 +282,27 @@ export function publicContentSql(): string {
  */
 export function publicFlowsSql(todayIso: string): string {
   return [
-    "SELECT url, \"Name\", \"Type\", \"date:Date:start\", \"Venue\"",
+    'SELECT url, "Name", "Type", "date:Date:start", "Venue"',
     `FROM ${source(V3_DATA_SOURCES.flows)}`,
     "WHERE \"Public?\" = '__YES__'",
     `  AND "Status" IN (${quoted(PUBLIC_FLOW_STATUSES)})`,
     `  AND "Type" IN (${quoted(PUBLIC_FLOW_TYPES)})`,
     `  AND "date:Date:start" >= '${todayIso}'`,
-    "ORDER BY \"date:Date:start\" ASC",
+    'ORDER BY "date:Date:start" ASC',
   ].join("\n");
 }
 
 /** Team-facing Flows inside a date window. Authenticated callers only. */
 export function teamFlowsThisWeekSql(startIso: string, endIso: string): string {
   return [
-    "SELECT url, \"Name\", \"Type\", \"Status\", \"Phase\", \"date:Date:start\",",
-    "       \"Venue\", \"date:Media Cutoff:start\", \"Drive Folder\"",
+    'SELECT url, "Name", "Type", "Status", "Phase", "date:Date:start",',
+    '       "Venue", "date:Media Cutoff:start", "Drive Folder",',
+    '       "Offering Arc", "Readiness Outcome", "date:Thank-you Due:start"',
     `FROM ${source(V3_DATA_SOURCES.flows)}`,
     `WHERE "date:Date:start" >= '${startIso}'`,
     `  AND "date:Date:start" <= '${endIso}'`,
     "  AND \"Status\" != 'Cancelled'",
-    "ORDER BY \"date:Date:start\" ASC",
+    'ORDER BY "date:Date:start" ASC',
   ].join("\n");
 }
 
@@ -281,15 +312,18 @@ export function teamFlowsThisWeekSql(startIso: string, endIso: string): string {
  * out, with the date secured at least a month prior — so this is the
  * "marketing should have started" alarm, not a nag.
  */
-export function needsMarketingSql(todayIso: string, fourWeeksOutIso: string): string {
+export function needsMarketingSql(
+  todayIso: string,
+  fourWeeksOutIso: string
+): string {
   return [
-    "SELECT url, \"Name\", \"Type\", \"Status\", \"Phase\", \"date:Date:start\"",
+    'SELECT url, "Name", "Type", "Status", "Phase", "date:Date:start"',
     `FROM ${source(V3_DATA_SOURCES.flows)}`,
     `WHERE "date:Date:start" >= '${todayIso}'`,
     `  AND "date:Date:start" <= '${fourWeeksOutIso}'`,
     "  AND \"Status\" != 'Cancelled'",
     `  AND ("Phase" IS NULL OR "Phase" IN (${quoted(PRE_MARKETING_PHASES)}))`,
-    "ORDER BY \"date:Date:start\" ASC",
+    'ORDER BY "date:Date:start" ASC',
   ].join("\n");
 }
 
@@ -300,12 +334,12 @@ export function needsMarketingSql(todayIso: string, fourWeeksOutIso: string): st
 export function myMovesSql(personPageUrl: string): string {
   const needle = personPageUrl.replace(/'/g, "''");
   return [
-    "SELECT url, \"Name\", \"Type\", \"Status\", \"date:Due:start\",",
-    "       \"Blocked By\", \"Flow\"",
+    'SELECT url, "Name", "Type", "Status", "date:Due:start",',
+    '       "Blocked By", "Flow"',
     `FROM ${source(V3_DATA_SOURCES.moves)}`,
     `WHERE "Status" IN (${quoted(ACTIVE_MOVE_STATUSES)})`,
     `  AND "Owner" LIKE '%${needle}%'`,
-    "ORDER BY \"date:Due:start\" ASC",
+    'ORDER BY "date:Due:start" ASC',
   ].join("\n");
 }
 
@@ -346,6 +380,12 @@ export function toTeamFlow(row: RawRow): TeamFlow {
     venue: str(row, "Venue"),
     mediaCutoff: str(row, "date:Media Cutoff:start"),
     driveFolder: str(row, "Drive Folder"),
+    offeringArc: oneOf(str(row, "Offering Arc"), OFFERING_ARC_OPTIONS),
+    readinessOutcome: oneOf(
+      str(row, "Readiness Outcome"),
+      READINESS_OUTCOME_OPTIONS
+    ),
+    thankyouDue: str(row, "date:Thank-you Due:start"),
   };
 }
 
@@ -366,7 +406,11 @@ export function toTeamMove(row: RawRow): TeamMove {
  * True when a Flow is close enough that promotion should be underway but its
  * Phase says it is not. A blank Phase counts as not started.
  */
-export function isMarketingOverdue(row: RawRow, todayIso: string, fourWeeksOutIso: string): boolean {
+export function isMarketingOverdue(
+  row: RawRow,
+  todayIso: string,
+  fourWeeksOutIso: string
+): boolean {
   const date = str(row, "date:Date:start") ?? str(row, "Date");
   if (!date) return false;
   if (date < todayIso || date > fourWeeksOutIso) return false;
@@ -388,7 +432,10 @@ export function isRenderableAsset(row: RawRow): boolean {
 }
 
 /** True when a Move belongs to the given PEOPLE page URL. Defense in depth. */
-export function moveBelongsToPerson(row: RawRow, personPageUrl: string): boolean {
+export function moveBelongsToPerson(
+  row: RawRow,
+  personPageUrl: string
+): boolean {
   return relations(row, "Owner").includes(personPageUrl);
 }
 
@@ -396,7 +443,7 @@ export function moveBelongsToPerson(row: RawRow, personPageUrl: string): boolean
 export function withStaleness<T>(
   payload: T,
   lastGoodSyncAt: string | null,
-  isStale: boolean,
+  isStale: boolean
 ): T & { lastGoodSyncAt: string | null; stale: boolean } {
   return { ...payload, lastGoodSyncAt, stale: isStale };
 }

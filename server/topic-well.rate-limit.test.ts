@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { consumeTopicWellRateLimit, resetTopicWellSafeguardsForTests } from "./routes/createwell";
+import {
+  consumeTopicWellRateLimit,
+  resetTopicWellSafeguardsForTests,
+} from "./routes/createwell";
 
 describe("Topic Well rate limiting", () => {
   it("blocks the ninth submission from the same source within the 15-minute window", () => {

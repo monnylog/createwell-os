@@ -6,7 +6,10 @@ type CacheEntry<T> = {
 const publicCache = new Map<string, CacheEntry<unknown>>();
 const PUBLIC_CACHE_TTL_MS = 60_000;
 
-export async function readPublicCache<T>(key: string, loader: () => Promise<T>): Promise<T> {
+export async function readPublicCache<T>(
+  key: string,
+  loader: () => Promise<T>
+): Promise<T> {
   const cached = publicCache.get(key) as CacheEntry<T> | undefined;
   if (cached && cached.expiresAt > Date.now()) {
     return cached.value;

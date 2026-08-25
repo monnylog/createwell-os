@@ -12,16 +12,16 @@ Tooling note: the GitHub connector's `get_file_contents` returns a success messa
 
 Create Well Collective's internal operating system — a TypeScript full-stack app with tRPC end to end, backed by Notion.
 
-| Area | What's there |
-| --- | --- |
-| `client/` | React 19 + Vite 7, shadcn/ui over Radix, Tailwind 4, wouter routing |
-| `server/_core/` | Express entry (`index.ts`), tRPC setup (`trpc.ts`), cookies, env, systemRouter |
-| `server/notion/` | The Notion integration layer. This is the heart of the app |
-| `server/routers.ts` | tRPC v11 `appRouter` |
-| `shared/` | Types and constants crossing the client/server boundary |
-| `drizzle/` | Drizzle ORM (MySQL). Auth/user storage only — not domain data |
-| `docs/` | Operating documentation, mirrored from Notion |
-| `patches/` | pnpm patches — `wouter@3.7.1` is patched |
+| Area                | What's there                                                                   |
+| ------------------- | ------------------------------------------------------------------------------ |
+| `client/`           | React 19 + Vite 7, shadcn/ui over Radix, Tailwind 4, wouter routing            |
+| `server/_core/`     | Express entry (`index.ts`), tRPC setup (`trpc.ts`), cookies, env, systemRouter |
+| `server/notion/`    | The Notion integration layer. This is the heart of the app                     |
+| `server/routers.ts` | tRPC v11 `appRouter`                                                           |
+| `shared/`           | Types and constants crossing the client/server boundary                        |
+| `drizzle/`          | Drizzle ORM (MySQL). Auth/user storage only — not domain data                  |
+| `docs/`             | Operating documentation, mirrored from Notion                                  |
+| `patches/`          | pnpm patches — `wouter@3.7.1` is patched                                       |
 
 Data fetching is **TanStack Query v5** through tRPC with `superjson`. Validation is **zod 4**.
 
@@ -29,16 +29,16 @@ Data fetching is **TanStack Query v5** through tRPC with `superjson`. Validation
 
 Verified against `package.json`.
 
-| Command | What it runs |
-| --- | --- |
-| `pnpm install` | Install dependencies |
-| `pnpm dev` | `NODE_ENV=development tsx watch server/_core/index.ts` |
-| `pnpm build` | `vite build` then esbuild-bundles the server to `dist/` |
-| `pnpm start` | `NODE_ENV=production node dist/index.js` |
-| `pnpm check` | `tsc --noEmit` |
-| `pnpm format` | `prettier --write .` |
-| `pnpm test` | `vitest run` |
-| `pnpm db:push` | `drizzle-kit generate && drizzle-kit migrate` |
+| Command        | What it runs                                            |
+| -------------- | ------------------------------------------------------- |
+| `pnpm install` | Install dependencies                                    |
+| `pnpm dev`     | `NODE_ENV=development tsx watch server/_core/index.ts`  |
+| `pnpm build`   | `vite build` then esbuild-bundles the server to `dist/` |
+| `pnpm start`   | `NODE_ENV=production node dist/index.js`                |
+| `pnpm check`   | `tsc --noEmit`                                          |
+| `pnpm format`  | `prettier --write .`                                    |
+| `pnpm test`    | `vitest run`                                            |
+| `pnpm db:push` | `drizzle-kit generate && drizzle-kit migrate`           |
 
 There is **no lint script**. The gate is `pnpm check` plus `pnpm format`.
 
@@ -54,14 +54,14 @@ v3 is a **read model**. The surface is deliberately small.
 
 ### Router surface — complete
 
-| Route | Procedure |
-| --- | --- |
-| `createWell.public.content` | `publicProcedure` |
-| `createWell.public.flows` | `publicProcedure` |
-| `createWell.team.profile` | `protectedProcedure` |
-| `createWell.team.programCalendar` | `protectedProcedure` |
+| Route                               | Procedure            |
+| ----------------------------------- | -------------------- |
+| `createWell.public.content`         | `publicProcedure`    |
+| `createWell.public.flows`           | `publicProcedure`    |
+| `createWell.team.profile`           | `protectedProcedure` |
+| `createWell.team.programCalendar`   | `protectedProcedure` |
 | `createWell.team.editorialPipeline` | `protectedProcedure` |
-| `createWell.team.moves.list` | `protectedProcedure` |
+| `createWell.team.moves.list`        | `protectedProcedure` |
 
 There is **no admin router** and **no mutation** under `createWell`. Removed in v3: `public.offers`, `team.tasks`, `team.checkIns`, `admin.needs`, `admin.decisions`.
 
@@ -69,12 +69,12 @@ There is **no admin router** and **no mutation** under `createWell`. Removed in 
 
 `server/notion/config.ts` defines exactly five, each overridable by env var:
 
-| Key | Env var |
-| --- | --- |
-| `people` | `NOTION_PEOPLE_DATA_SOURCE_ID` |
-| `flows` | `NOTION_FLOWS_DATA_SOURCE_ID` |
-| `moves` | `NOTION_MOVES_DATA_SOURCE_ID` |
-| `money` | `NOTION_MONEY_DATA_SOURCE_ID` |
+| Key       | Env var                         |
+| --------- | ------------------------------- |
+| `people`  | `NOTION_PEOPLE_DATA_SOURCE_ID`  |
+| `flows`   | `NOTION_FLOWS_DATA_SOURCE_ID`   |
+| `moves`   | `NOTION_MOVES_DATA_SOURCE_ID`   |
+| `money`   | `NOTION_MONEY_DATA_SOURCE_ID`   |
 | `content` | `NOTION_CONTENT_DATA_SOURCE_ID` |
 
 `events` became `flows`. `tasks` became `moves`. Offers retired — the seven Well layers are now the `FLOWS.Type` select. Workshop Sessions, Book Club Sessions, Topic Well, Check-ins, Needs, Decisions, and Partner Organizations were all retired. **Do not reintroduce them.**
@@ -89,20 +89,20 @@ These have **no public projection, ever**. Not filtered — absent. `assertNotio
 
 ### The Notion layer
 
-| File | Responsibility |
-| --- | --- |
-| `client.ts` | REST client. Base `https://api.notion.com/v1`, version `2025-09-03` |
-| `config.ts` | Data source ids, `PRIVATE_ONLY_KEYS`, `assertNotionConfiguration` |
-| `schemas.ts` | Zod input schemas |
-| `service.ts` | Domain operations composing client + config |
-| `v3-read-models.ts` | Public and team projections. The largest file here |
-| `v3-guards.ts` | Deny-list guards that throw rather than leak |
-| `cache.ts` | Public cache, 60s TTL (`readPublicCache`) |
-| `security.ts` | Idempotency replay: `fresh` / `replay` / `conflict` |
+| File                | Responsibility                                                      |
+| ------------------- | ------------------------------------------------------------------- |
+| `client.ts`         | REST client. Base `https://api.notion.com/v1`, version `2025-09-03` |
+| `config.ts`         | Data source ids, `PRIVATE_ONLY_KEYS`, `assertNotionConfiguration`   |
+| `schemas.ts`        | Zod input schemas                                                   |
+| `service.ts`        | Domain operations composing client + config                         |
+| `v3-read-models.ts` | Public and team projections. The largest file here                  |
+| `v3-guards.ts`      | Deny-list guards that throw rather than leak                        |
+| `cache.ts`          | Public cache, 60s TTL (`readPublicCache`)                           |
+| `security.ts`       | Idempotency replay: `fresh` / `replay` / `conflict`                 |
 
 ## The test suites that hold the line
 
-**`server/notion.v3.privacy.test.ts` — 38 tests.** Read it before touching any public surface. It covers: the public FLOWS gate (actionable status, dated today or later, never Internal), `FLOWS.Phase` being internal-only, the marketing-overdue alarm, the public CONTENT gate (Published *and* Public), MONEY never being publicly queryable, MOVES being scoped to the session person, stale-beats-wrong cache labelling, and non-empty deny-lists.
+**`server/notion.v3.privacy.test.ts` — 38 tests.** Read it before touching any public surface. It covers: the public FLOWS gate (actionable status, dated today or later, never Internal), `FLOWS.Phase` being internal-only, the marketing-overdue alarm, the public CONTENT gate (Published _and_ Public), MONEY never being publicly queryable, MOVES being scoped to the session person, stale-beats-wrong cache labelling, and non-empty deny-lists.
 
 **`server/createwell.access.test.ts` — 13 tests.** Asserts anonymous callers get `UNAUTHORIZED` on every team route, public routes need no auth, and the v3 removals stay removed. If this fails with `NOT_FOUND`, a route was renamed or deleted — fix the router or the test deliberately, never by re-adding a retired route.
 

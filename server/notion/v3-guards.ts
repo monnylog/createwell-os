@@ -34,6 +34,10 @@ export const PUBLIC_FLOW_DENIED_FIELDS = [
   "Moves",
   "Capacity",
   "Phase",
+  "Offering Arc",
+  "Readiness Outcome",
+  "Thank-you Due",
+  "date:Thank-you Due:start",
   "notes",
   "retro",
   "driveFolder",
@@ -47,6 +51,9 @@ export const PUBLIC_FLOW_DENIED_FIELDS = [
   "moves",
   "capacity",
   "phase",
+  "offeringArc",
+  "readinessOutcome",
+  "thankyouDue",
 ] as const;
 
 /**
@@ -73,7 +80,7 @@ export const MONEY_HAS_NO_PUBLIC_ROUTE = true as const;
 export class PublicPayloadLeakError extends Error {
   constructor(
     readonly field: string,
-    readonly surface: string,
+    readonly surface: string
   ) {
     super(`Denied field "${field}" would leak through the ${surface} surface`);
     this.name = "PublicPayloadLeakError";
@@ -91,7 +98,7 @@ function keysOf(payload: unknown): string[] {
 export function assertNoDeniedFields(
   payload: unknown,
   denied: readonly string[],
-  surface: string,
+  surface: string
 ): void {
   const present = new Set(keysOf(payload));
   for (const field of denied) {
@@ -101,7 +108,7 @@ export function assertNoDeniedFields(
 
 function omit<T extends Record<string, unknown>>(
   value: T,
-  denied: readonly string[],
+  denied: readonly string[]
 ): Partial<T> {
   const out: Record<string, unknown> = {};
   for (const [key, entry] of Object.entries(value)) {
@@ -111,20 +118,31 @@ function omit<T extends Record<string, unknown>>(
   return out as Partial<T>;
 }
 
-export function scrubPublicFlow<T extends Record<string, unknown>>(flow: T): Partial<T> {
+export function scrubPublicFlow<T extends Record<string, unknown>>(
+  flow: T
+): Partial<T> {
   const scrubbed = omit(flow, PUBLIC_FLOW_DENIED_FIELDS);
   assertNoDeniedFields(scrubbed, PUBLIC_FLOW_DENIED_FIELDS, "public flows");
   return scrubbed;
 }
 
-export function scrubPublicContent<T extends Record<string, unknown>>(item: T): Partial<T> {
+export function scrubPublicContent<T extends Record<string, unknown>>(
+  item: T
+): Partial<T> {
   const scrubbed = omit(item, PUBLIC_CONTENT_DENIED_FIELDS);
-  assertNoDeniedFields(scrubbed, PUBLIC_CONTENT_DENIED_FIELDS, "public content");
+  assertNoDeniedFields(
+    scrubbed,
+    PUBLIC_CONTENT_DENIED_FIELDS,
+    "public content"
+  );
   return scrubbed;
 }
 
 /** Call from any public route factory. MONEY must never be reachable. */
-export function assertMoneyNeverPublic(dataSourceId: string, moneyId: string): void {
+export function assertMoneyNeverPublic(
+  dataSourceId: string,
+  moneyId: string
+): void {
   if (dataSourceId === moneyId) {
     throw new Error("MONEY has no public route in Create Well OS v3");
   }
@@ -136,7 +154,7 @@ export function assertMoneyNeverPublic(dataSourceId: string, moneyId: string): v
  */
 export function assertMoveOwnership(
   moveOwnerUrls: readonly string[],
-  sessionPersonUrl: string,
+  sessionPersonUrl: string
 ): void {
   if (!moveOwnerUrls.includes(sessionPersonUrl)) {
     throw new Error("A Move may only be read by its owner");

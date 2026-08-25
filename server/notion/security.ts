@@ -25,7 +25,11 @@ export class IdempotencyStore<T> {
   }
 
   write(key: string, payloadHash: string, response: T, ttlMs: number) {
-    this.entries.set(key, { payloadHash, response, expiresAt: Date.now() + ttlMs });
+    this.entries.set(key, {
+      payloadHash,
+      response,
+      expiresAt: Date.now() + ttlMs,
+    });
   }
 
   clear() {
@@ -34,12 +38,22 @@ export class IdempotencyStore<T> {
 }
 
 export function createPayloadHash(payload: unknown) {
-  return crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+  return crypto
+    .createHash("sha256")
+    .update(JSON.stringify(payload))
+    .digest("hex");
 }
 
-export function verifyNotionWebhookSignature(rawBody: Buffer, signature: string | undefined, verificationToken: string) {
+export function verifyNotionWebhookSignature(
+  rawBody: Buffer,
+  signature: string | undefined,
+  verificationToken: string
+) {
   if (!signature || !verificationToken) return false;
-  const expected = crypto.createHmac("sha256", verificationToken).update(rawBody).digest("hex");
+  const expected = crypto
+    .createHmac("sha256", verificationToken)
+    .update(rawBody)
+    .digest("hex");
   const received = signature.replace(/^sha256=/, "");
   if (received.length !== expected.length) return false;
   return crypto.timingSafeEqual(Buffer.from(received), Buffer.from(expected));

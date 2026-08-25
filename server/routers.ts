@@ -35,14 +35,18 @@ export const appRouter = router({
   }),
   createWell: router({
     public: router({
-      content: publicProcedure.query(() => readPublicCache("content", getApprovedContent)),
-      flows: publicProcedure.query(() => readPublicCache("flows", getUpcomingPublicFlows)),
+      content: publicProcedure.query(() =>
+        readPublicCache("content", getApprovedContent)
+      ),
+      flows: publicProcedure.query(() =>
+        readPublicCache("flows", getUpcomingPublicFlows)
+      ),
     }),
     team: router({
       profile: protectedProcedure.query(({ ctx }) => getTeamProfile(ctx.user)),
       programCalendar: protectedProcedure.query(() => listFlows()),
       editorialPipeline: protectedProcedure.query(() =>
-        listDataSourceRecords(notionConfig.dataSourceIds.content),
+        listDataSourceRecords(notionConfig.dataSourceIds.content)
       ),
       moves: router({
         list: protectedProcedure.query(() => listMoves()),

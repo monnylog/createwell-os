@@ -6,9 +6,12 @@ import {
   moveBelongsToPerson,
   myMovesSql,
   needsMarketingSql,
+  OFFERING_ARC_OPTIONS,
   publicContentSql,
   publicFlowsSql,
   PUBLIC_FLOW_STATUSES,
+  READINESS_OUTCOME_OPTIONS,
+  teamFlowsThisWeekSql,
   toPublicContent,
   toPublicFlow,
   toTeamFlow,
@@ -53,6 +56,9 @@ const podyapRow: RawRow = {
   Support: JSON.stringify([MONNY]),
   "Flow Keeper": JSON.stringify([MONNY]),
   Capacity: 12,
+  "Offering Arc": "Design",
+  "Readiness Outcome": "Ready for depth",
+  "date:Thank-you Due:start": "2026-08-28",
 };
 
 describe("public FLOWS surface", () => {
@@ -66,7 +72,12 @@ describe("public FLOWS surface", () => {
 
   it("excludes Idea, Happened, Wrapped, and Cancelled even when upcoming", () => {
     const sql = publicFlowsSql("2026-08-24");
-    for (const excluded of ["'Idea'", "'Happened'", "'Wrapped'", "'Cancelled'"]) {
+    for (const excluded of [
+      "'Idea'",
+      "'Happened'",
+      "'Wrapped'",
+      "'Cancelled'",
+    ]) {
       expect(sql).not.toContain(excluded);
     }
   });
@@ -77,7 +88,7 @@ describe("public FLOWS surface", () => {
 
   it("only returns Flows dated today or later", () => {
     expect(publicFlowsSql("2026-08-24")).toContain(
-      "\"date:Date:start\" >= '2026-08-24'",
+      "\"date:Date:start\" >= '2026-08-24'"
     );
   });
 
@@ -88,7 +99,7 @@ describe("public FLOWS surface", () => {
   it("maps a Flow down to public-safe fields only", () => {
     const mapped = toPublicFlow(podyapRow) as Record<string, unknown>;
     expect(Object.keys(mapped).sort()).toEqual(
-      ["date", "id", "name", "type", "venue"].sort(),
+      ["date", "id", "name", "type", "venue"].sort()
     );
   });
 
@@ -102,8 +113,8 @@ describe("public FLOWS surface", () => {
       assertNoDeniedFields(
         toPublicFlow(podyapRow),
         PUBLIC_FLOW_DENIED_FIELDS,
-        "public flows",
-      ),
+        "public flows"
+      )
     ).not.toThrow();
   });
 
@@ -116,7 +127,7 @@ describe("public FLOWS surface", () => {
 
   it("throws rather than silently publishing a denied field", () => {
     expect(() =>
-      assertNoDeniedFields(podyapRow, PUBLIC_FLOW_DENIED_FIELDS, "public flows"),
+      assertNoDeniedFields(podyapRow, PUBLIC_FLOW_DENIED_FIELDS, "public flows")
     ).toThrow(PublicPayloadLeakError);
   });
 
@@ -161,46 +172,66 @@ describe("marketing-overdue alarm", () => {
   it("flags a Concepting Flow two weeks out", () => {
     expect(
       isMarketingOverdue(
-        { "date:Date:start": "2026-09-07", Phase: "Concepting", Status: "Scheduled" },
+        {
+          "date:Date:start": "2026-09-07",
+          Phase: "Concepting",
+          Status: "Scheduled",
+        },
         TODAY,
-        FOUR_WEEKS,
-      ),
+        FOUR_WEEKS
+      )
     ).toBe(true);
   });
 
   it("does not flag a Marketing Flow two weeks out", () => {
     expect(
       isMarketingOverdue(
-        { "date:Date:start": "2026-09-07", Phase: "Marketing", Status: "Approved" },
+        {
+          "date:Date:start": "2026-09-07",
+          Phase: "Marketing",
+          Status: "Approved",
+        },
         TODAY,
-        FOUR_WEEKS,
-      ),
+        FOUR_WEEKS
+      )
     ).toBe(false);
   });
 
   it("does not flag a Concepting Flow eight weeks out", () => {
     expect(
       isMarketingOverdue(
-        { "date:Date:start": "2026-10-19", Phase: "Concepting", Status: "Idea" },
+        {
+          "date:Date:start": "2026-10-19",
+          Phase: "Concepting",
+          Status: "Idea",
+        },
         TODAY,
-        FOUR_WEEKS,
-      ),
+        FOUR_WEEKS
+      )
     ).toBe(false);
   });
 
   it("treats a blank Phase as not started", () => {
     expect(
-      isMarketingOverdue({ "date:Date:start": "2026-09-07", Status: "Scheduled" }, TODAY, FOUR_WEEKS),
+      isMarketingOverdue(
+        { "date:Date:start": "2026-09-07", Status: "Scheduled" },
+        TODAY,
+        FOUR_WEEKS
+      )
     ).toBe(true);
   });
 
   it("ignores Cancelled Flows", () => {
     expect(
       isMarketingOverdue(
-        { "date:Date:start": "2026-09-07", Phase: "Concepting", Status: "Cancelled" },
+        {
+          "date:Date:start": "2026-09-07",
+          Phase: "Concepting",
+          Status: "Cancelled",
+        },
         TODAY,
-        FOUR_WEEKS,
-      ),
+        FOUR_WEEKS
+      )
     ).toBe(false);
   });
 
@@ -251,8 +282,14 @@ describe("public CONTENT surface", () => {
   });
 
   it("applies Final? to Asset Link rows only", () => {
-    const unfinishedAsset: RawRow = { "Content Type": "Asset Link", "Final?": "__NO__" };
-    const finishedAsset: RawRow = { "Content Type": "Asset Link", "Final?": "__YES__" };
+    const unfinishedAsset: RawRow = {
+      "Content Type": "Asset Link",
+      "Final?": "__NO__",
+    };
+    const finishedAsset: RawRow = {
+      "Content Type": "Asset Link",
+      "Final?": "__YES__",
+    };
     const editorial: RawRow = { "Content Type": "Editorial Note" };
 
     expect(isRenderableAsset(unfinishedAsset)).toBe(false);
@@ -273,16 +310,16 @@ describe("MONEY is never public", () => {
 
   it("refuses a public query against the MONEY data source", () => {
     expect(() =>
-      assertMoneyNeverPublic(V3_DATA_SOURCES.money, V3_DATA_SOURCES.money),
+      assertMoneyNeverPublic(V3_DATA_SOURCES.money, V3_DATA_SOURCES.money)
     ).toThrow(/no public route/i);
   });
 
   it("allows public queries against CONTENT and FLOWS", () => {
     expect(() =>
-      assertMoneyNeverPublic(V3_DATA_SOURCES.content, V3_DATA_SOURCES.money),
+      assertMoneyNeverPublic(V3_DATA_SOURCES.content, V3_DATA_SOURCES.money)
     ).not.toThrow();
     expect(() =>
-      assertMoneyNeverPublic(V3_DATA_SOURCES.flows, V3_DATA_SOURCES.money),
+      assertMoneyNeverPublic(V3_DATA_SOURCES.flows, V3_DATA_SOURCES.money)
     ).not.toThrow();
   });
 
@@ -320,7 +357,9 @@ describe("MOVES ownership", () => {
 
   it("rejects reading another person's Move", () => {
     expect(moveBelongsToPerson(sunshineMove, MONNY)).toBe(false);
-    expect(() => assertMoveOwnership([SUNSHINE], MONNY)).toThrow(/only be read by its owner/i);
+    expect(() => assertMoveOwnership([SUNSHINE], MONNY)).toThrow(
+      /only be read by its owner/i
+    );
   });
 
   it("allows the owner to read their own Move", () => {
@@ -332,7 +371,11 @@ describe("MOVES ownership", () => {
 
 describe("stale beats wrong", () => {
   it("marks a served-from-cache payload as stale with its last good time", () => {
-    const payload = withStaleness({ flows: [], myMoves: [] }, "2026-08-24T21:30:00.000Z", true);
+    const payload = withStaleness(
+      { flows: [], myMoves: [] },
+      "2026-08-24T21:30:00.000Z",
+      true
+    );
     expect(payload.stale).toBe(true);
     expect(payload.lastGoodSyncAt).toBe("2026-08-24T21:30:00.000Z");
   });
@@ -348,5 +391,165 @@ describe("deny-lists are non-empty", () => {
   it("guards both public surfaces", () => {
     expect(PUBLIC_FLOW_DENIED_FIELDS.length).toBeGreaterThan(0);
     expect(PUBLIC_CONTENT_DENIED_FIELDS.length).toBeGreaterThan(0);
+  });
+});
+
+describe("new team-only FLOWS properties are private", () => {
+  it("offeringArc never appears in the public SQL selection", () => {
+    const sql = publicFlowsSql("2026-08-26");
+    expect(sql).not.toContain("Offering Arc");
+  });
+
+  it("readinessOutcome never appears in the public SQL selection", () => {
+    const sql = publicFlowsSql("2026-08-26");
+    expect(sql).not.toContain("Readiness Outcome");
+  });
+
+  it("thankyouDue never appears in the public SQL selection", () => {
+    const sql = publicFlowsSql("2026-08-26");
+    expect(sql).not.toContain("Thank-you Due");
+  });
+
+  it("public mapper does not include offeringArc", () => {
+    const mapped = toPublicFlow(podyapRow) as Record<string, unknown>;
+    expect(mapped).not.toHaveProperty("offeringArc");
+    expect(mapped).not.toHaveProperty("Offering Arc");
+  });
+
+  it("public mapper does not include readinessOutcome", () => {
+    const mapped = toPublicFlow(podyapRow) as Record<string, unknown>;
+    expect(mapped).not.toHaveProperty("readinessOutcome");
+    expect(mapped).not.toHaveProperty("Readiness Outcome");
+  });
+
+  it("public mapper does not include thankyouDue", () => {
+    const mapped = toPublicFlow(podyapRow) as Record<string, unknown>;
+    expect(mapped).not.toHaveProperty("thankyouDue");
+    expect(mapped).not.toHaveProperty("Thank-you Due");
+  });
+
+  it("three new fields are on the public deny-list", () => {
+    expect(PUBLIC_FLOW_DENIED_FIELDS).toContain("Offering Arc");
+    expect(PUBLIC_FLOW_DENIED_FIELDS).toContain("offeringArc");
+    expect(PUBLIC_FLOW_DENIED_FIELDS).toContain("Readiness Outcome");
+    expect(PUBLIC_FLOW_DENIED_FIELDS).toContain("readinessOutcome");
+    expect(PUBLIC_FLOW_DENIED_FIELDS).toContain("Thank-you Due");
+    expect(PUBLIC_FLOW_DENIED_FIELDS).toContain("date:Thank-you Due:start");
+    expect(PUBLIC_FLOW_DENIED_FIELDS).toContain("thankyouDue");
+  });
+
+  it("assertNoDeniedFields throws when a new field leaks into a public payload", () => {
+    expect(() =>
+      assertNoDeniedFields(
+        { id: "x", offeringArc: "Design" },
+        PUBLIC_FLOW_DENIED_FIELDS,
+        "public flows"
+      )
+    ).toThrow(PublicPayloadLeakError);
+
+    expect(() =>
+      assertNoDeniedFields(
+        { id: "x", readinessOutcome: "Start here" },
+        PUBLIC_FLOW_DENIED_FIELDS,
+        "public flows"
+      )
+    ).toThrow(PublicPayloadLeakError);
+
+    expect(() =>
+      assertNoDeniedFields(
+        { id: "x", thankyouDue: "2026-08-28" },
+        PUBLIC_FLOW_DENIED_FIELDS,
+        "public flows"
+      )
+    ).toThrow(PublicPayloadLeakError);
+  });
+
+  it("scrubPublicFlow strips all three new team-only fields", () => {
+    const scrubbed = scrubPublicFlow({
+      id: "flow-2",
+      name: "Workshop",
+      offeringArc: "Practice",
+      readinessOutcome: "Not yet",
+      thankyouDue: "2026-08-28",
+    });
+    expect(scrubbed).toEqual({ id: "flow-2", name: "Workshop" });
+  });
+});
+
+describe("team Flow mapper includes permitted new fields", () => {
+  it("exposes offeringArc from a valid row value", () => {
+    expect(toTeamFlow(podyapRow).offeringArc).toBe("Design");
+  });
+
+  it("exposes readinessOutcome from a valid row value", () => {
+    expect(toTeamFlow(podyapRow).readinessOutcome).toBe("Ready for depth");
+  });
+
+  it("exposes thankyouDue from the row", () => {
+    expect(toTeamFlow(podyapRow).thankyouDue).toBe("2026-08-28");
+  });
+
+  it("returns null offeringArc for an out-of-vocabulary value", () => {
+    expect(
+      toTeamFlow({ ...podyapRow, "Offering Arc": "Unknown" }).offeringArc
+    ).toBeNull();
+  });
+
+  it("returns null readinessOutcome for an out-of-vocabulary value", () => {
+    expect(
+      toTeamFlow({ ...podyapRow, "Readiness Outcome": "Maybe" })
+        .readinessOutcome
+    ).toBeNull();
+  });
+
+  it("returns null thankyouDue when not present", () => {
+    const { "date:Thank-you Due:start": _omitted, ...rowWithout } =
+      podyapRow as Record<string, unknown>;
+    expect(toTeamFlow(rowWithout).thankyouDue).toBeNull();
+  });
+
+  it("covers all OFFERING_ARC_OPTIONS values", () => {
+    for (const arc of OFFERING_ARC_OPTIONS) {
+      expect(
+        toTeamFlow({ ...podyapRow, "Offering Arc": arc }).offeringArc
+      ).toBe(arc);
+    }
+  });
+
+  it("covers all READINESS_OUTCOME_OPTIONS values", () => {
+    for (const outcome of READINESS_OUTCOME_OPTIONS) {
+      expect(
+        toTeamFlow({ ...podyapRow, "Readiness Outcome": outcome })
+          .readinessOutcome
+      ).toBe(outcome);
+    }
+  });
+
+  it("team Flow SQL selects the three new columns", () => {
+    const sql = teamFlowsThisWeekSql("2026-08-24", "2026-08-31");
+    expect(sql).toContain("Offering Arc");
+    expect(sql).toContain("Readiness Outcome");
+    expect(sql).toContain("Thank-you Due");
+  });
+
+  it("team Flow mapper output has exactly the permitted team keys", () => {
+    const mapped = toTeamFlow(podyapRow) as Record<string, unknown>;
+    const keys = Object.keys(mapped).sort();
+    expect(keys).toEqual(
+      [
+        "date",
+        "driveFolder",
+        "id",
+        "mediaCutoff",
+        "name",
+        "offeringArc",
+        "phase",
+        "readinessOutcome",
+        "status",
+        "thankyouDue",
+        "type",
+        "venue",
+      ].sort()
+    );
   });
 });

@@ -36,10 +36,15 @@ function createContext(role: "user" | "admin" | null): TrpcContext {
 }
 
 function procedurePaths(): string[] {
-  return Object.keys((appRouter as unknown as { _def: { procedures: Record<string, unknown> } })._def.procedures);
+  return Object.keys(
+    (appRouter as unknown as { _def: { procedures: Record<string, unknown> } })
+      ._def.procedures
+  );
 }
 
-async function errorCodeOf(run: () => Promise<unknown>): Promise<string | null> {
+async function errorCodeOf(
+  run: () => Promise<unknown>
+): Promise<string | null> {
   try {
     await run();
     return null;
@@ -52,23 +57,48 @@ describe("v3 public surface", () => {
   it("never rejects an anonymous caller for auth reasons", async () => {
     const caller = appRouter.createCaller(createContext(null));
 
-    expect(await errorCodeOf(() => caller.createWell.public.content())).not.toBe("UNAUTHORIZED");
-    expect(await errorCodeOf(() => caller.createWell.public.flows())).not.toBe("UNAUTHORIZED");
+    expect(
+      await errorCodeOf(() => caller.createWell.public.content())
+    ).not.toBe("UNAUTHORIZED");
+    expect(await errorCodeOf(() => caller.createWell.public.flows())).not.toBe(
+      "UNAUTHORIZED"
+    );
   });
 
   it("exposes exactly two public procedures", () => {
-    const publicPaths = procedurePaths().filter(path => path.startsWith("createWell.public."));
+    const publicPaths = procedurePaths().filter(path =>
+      path.startsWith("createWell.public.")
+    );
 
-    expect(publicPaths.sort()).toEqual(["createWell.public.content", "createWell.public.flows"]);
+    expect(publicPaths.sort()).toEqual([
+      "createWell.public.content",
+      "createWell.public.flows",
+    ]);
   });
 });
 
 describe("v3 team surface", () => {
   const routes = [
-    ["profile", (caller: ReturnType<typeof appRouter.createCaller>) => caller.createWell.team.profile()],
-    ["programCalendar", (caller: ReturnType<typeof appRouter.createCaller>) => caller.createWell.team.programCalendar()],
-    ["editorialPipeline", (caller: ReturnType<typeof appRouter.createCaller>) => caller.createWell.team.editorialPipeline()],
-    ["moves.list", (caller: ReturnType<typeof appRouter.createCaller>) => caller.createWell.team.moves.list()],
+    [
+      "profile",
+      (caller: ReturnType<typeof appRouter.createCaller>) =>
+        caller.createWell.team.profile(),
+    ],
+    [
+      "programCalendar",
+      (caller: ReturnType<typeof appRouter.createCaller>) =>
+        caller.createWell.team.programCalendar(),
+    ],
+    [
+      "editorialPipeline",
+      (caller: ReturnType<typeof appRouter.createCaller>) =>
+        caller.createWell.team.editorialPipeline(),
+    ],
+    [
+      "moves.list",
+      (caller: ReturnType<typeof appRouter.createCaller>) =>
+        caller.createWell.team.moves.list(),
+    ],
   ] as const;
 
   for (const [name, call] of routes) {
@@ -93,21 +123,28 @@ describe("v3 team surface", () => {
 
 describe("v3 removals stay removed", () => {
   it("has no admin router", () => {
-    expect(procedurePaths().filter(path => path.startsWith("createWell.admin"))).toEqual([]);
+    expect(
+      procedurePaths().filter(path => path.startsWith("createWell.admin"))
+    ).toEqual([]);
   });
 
   it("has no tasks or check-ins routes", () => {
     const retired = procedurePaths().filter(
-      path => path.includes(".tasks") || path.includes(".checkIns") || path.includes(".offers"),
+      path =>
+        path.includes(".tasks") ||
+        path.includes(".checkIns") ||
+        path.includes(".offers")
     );
 
     expect(retired).toEqual([]);
   });
 
   it("exposes no mutation under createWell", () => {
-    const procedures = (appRouter as unknown as {
-      _def: { procedures: Record<string, { _def?: { type?: string } }> };
-    })._def.procedures;
+    const procedures = (
+      appRouter as unknown as {
+        _def: { procedures: Record<string, { _def?: { type?: string } }> };
+      }
+    )._def.procedures;
 
     const mutations = Object.entries(procedures)
       .filter(([path]) => path.startsWith("createWell."))

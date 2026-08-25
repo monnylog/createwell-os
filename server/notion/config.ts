@@ -9,11 +9,21 @@
  * Decisions, Partner Organizations. Do not reintroduce them here.
  */
 const requiredDataSourceIds = {
-  people: process.env.NOTION_PEOPLE_DATA_SOURCE_ID ?? "b97bcbdf-2b1b-488d-9d07-4012b031732e",
-  flows: process.env.NOTION_FLOWS_DATA_SOURCE_ID ?? "c1677843-dd13-4e37-9f80-e960b26847dc",
-  moves: process.env.NOTION_MOVES_DATA_SOURCE_ID ?? "5597e583-f7df-4f6c-90b0-296a26c57454",
-  money: process.env.NOTION_MONEY_DATA_SOURCE_ID ?? "55832c19-38fa-44cb-b4c2-0174b4c5b207",
-  content: process.env.NOTION_CONTENT_DATA_SOURCE_ID ?? "cd410d33-8052-4897-8226-3a3ca84ea8bc",
+  people:
+    process.env.NOTION_PEOPLE_DATA_SOURCE_ID ??
+    "b97bcbdf-2b1b-488d-9d07-4012b031732e",
+  flows:
+    process.env.NOTION_FLOWS_DATA_SOURCE_ID ??
+    "c1677843-dd13-4e37-9f80-e960b26847dc",
+  moves:
+    process.env.NOTION_MOVES_DATA_SOURCE_ID ??
+    "5597e583-f7df-4f6c-90b0-296a26c57454",
+  money:
+    process.env.NOTION_MONEY_DATA_SOURCE_ID ??
+    "55832c19-38fa-44cb-b4c2-0174b4c5b207",
+  content:
+    process.env.NOTION_CONTENT_DATA_SOURCE_ID ??
+    "cd410d33-8052-4897-8226-3a3ca84ea8bc",
 } as const;
 
 export type NotionDataSourceKey = keyof typeof requiredDataSourceIds;
@@ -32,7 +42,9 @@ export const notionConfig = {
 
 export function assertNotionConfiguration() {
   if (!notionConfig.apiToken) {
-    throw new Error("NOTION_API_TOKEN is required for Create Well server-side synchronization.");
+    throw new Error(
+      "NOTION_API_TOKEN is required for Create Well server-side synchronization."
+    );
   }
   for (const [key, id] of Object.entries(notionConfig.dataSourceIds)) {
     if (!id) {

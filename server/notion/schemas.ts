@@ -10,9 +10,23 @@ export const topicWellInputSchema = z.object({
 });
 
 export const checkInInputSchema = z.object({
-  mood: z.enum(["Grounded", "Clear", "Tender", "Activated", "Low", "Energized", "Mixed"]),
+  mood: z.enum([
+    "Grounded",
+    "Clear",
+    "Tender",
+    "Activated",
+    "Low",
+    "Energized",
+    "Mixed",
+  ]),
   absorption: z.enum(["Open", "Steady", "Full", "Overfull", "Recovering"]),
-  bodyStatus: z.enum(["Steady", "Activated", "Tender", "Depleted", "Restoring"]),
+  bodyStatus: z.enum([
+    "Steady",
+    "Activated",
+    "Tender",
+    "Depleted",
+    "Restoring",
+  ]),
   reflection: z.string().trim().max(3_000).optional().default(""),
   shareLevel: z.enum(["Private", "Facilitator", "Team"]).default("Private"),
   followUpNeeded: z.boolean().default(false),
