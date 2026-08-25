@@ -25,13 +25,39 @@ function createContext(role: "user" | "admin" | null): TrpcContext {
 describe("Create Well server access boundaries", () => {
   it("rejects unauthenticated team access before requesting Notion data", async () => {
     const caller = appRouter.createCaller(createContext(null));
-    await expect(caller.createWell.team.tasks.list()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
-    await expect(caller.createWell.team.programCalendar()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+
+    // Every route under createWell.team is a protectedProcedure. An anonymous
+    // caller must be turned away here, before any Notion request is made.
+    await expect(caller.createWell.team.profile()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(caller.createWell.team.programCalendar()).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+    await expect(caller.createWell.team.editorialPipeline()).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+    await expect(caller.createWell.team.moves.list()).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
   });
 
-  it("rejects non-admin access to Needs and Decisions before requesting Notion data", async () => {
+  /**
+   * Skipped, not deleted.
+   *
+   * This test asserted that a signed-in non-admin got FORBIDDEN from
+   * admin.needs and admin.decisions. Those were the only role-gated routes in
+   * the application, and v3 ships no `admin` router at all — Needs and
+   * Decisions are paused as private, page-based work until the permission model
+   * is proven. Every surviving route is either public or merely authenticated,
+   * so there is currently no FORBIDDEN boundary to assert.
+   *
+   * Restore this the moment a role-gated route returns. The createContext
+   * helper still accepts "admin" and "user", so re-enabling is a one-line
+   * change plus the new route names. Leaving it skipped keeps the missing
+   * boundary visible in every test run instead of quietly dropping the
+   * guarantee.
+   */
+  it.skip("rejects non-admin access to role-gated routes before requesting Notion data", async () => {
     const caller = appRouter.createCaller(createContext("user"));
-    await expect(caller.createWell.admin.needs()).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await expect(caller.createWell.admin.decisions()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    void caller;
   });
 });
