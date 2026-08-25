@@ -73,6 +73,7 @@ function blockMap(entries: Record<string, NotionBlock[]>) {
 describe("notion sync", () => {
   it("normalizes slugs safely", () => {
     expect(normalizeSlug(" Café / Launch ")).toBe("cafe-launch");
+    expect(() => normalizeSlug("../launch")).toThrow(/safe slug/i);
   });
 
   it("paginates content into generated MDX with nested block bodies and escaped frontmatter", async () => {
@@ -257,6 +258,38 @@ describe("notion sync", () => {
     expect(result.actions[0]?.message).toContain(
       'Unsupported Notion block type "image"'
     );
+  });
+
+  it("fails clearly when nested blocks exceed the supported recursion depth", async () => {
+    const targetDir = await makeTempDir();
+
+    const deepBlocks: Record<string, NotionBlock[]> = {};
+    for (let depth = 0; depth <= 26; depth += 1) {
+      const current = depth === 0 ? "page-1" : `block-${depth}`;
+      const next = `block-${depth + 1}`;
+      deepBlocks[current] = [
+        {
+          id: next,
+          type: "bulleted_list_item",
+          has_children: depth < 26,
+          bulleted_list_item: { rich_text: richText(`Depth ${depth}`) },
+        },
+      ];
+    }
+
+    const result = await syncPublishedContentToMdx({
+      targetDir,
+      dependencies: {
+        listPublishedContentRecords: async () => [
+          pageRecord("page-1", "Deep Post"),
+        ],
+        listBlockChildren: blockMap(deepBlocks),
+      },
+    });
+
+    expect(result.applied).toBe(false);
+    expect(result.counts.error).toBe(1);
+    expect(result.actions[0]?.message).toContain("supported depth limit");
   });
 
   it("cleans up stale generated files on rename and unpublish while preserving manual MDX", async () => {

@@ -13,20 +13,6 @@ import { listPublishedContentRecords, type CreateWellRecord } from "./service";
 export const GENERATED_MARKER = "<!-- createwell-notion-sync:generated -->";
 const GENERATED_FIELD = "notionSyncGenerated";
 const GENERATED_PAGE_FIELD = "notionSyncPageId";
-const SUPPORTED_BLOCK_TYPES = new Set([
-  "paragraph",
-  "heading_1",
-  "heading_2",
-  "heading_3",
-  "bulleted_list_item",
-  "numbered_list_item",
-  "to_do",
-  "quote",
-  "callout",
-  "divider",
-  "code",
-]);
-
 type NotionRichText = {
   type?: string;
   plain_text?: string;
@@ -151,7 +137,17 @@ function extractSlugCandidate(record: CreateWellRecord): string {
 }
 
 export function normalizeSlug(value: string): string {
-  const normalized = value
+  const trimmed = value.trim();
+  if (
+    !trimmed ||
+    trimmed === "." ||
+    trimmed === ".." ||
+    /(^|[\\/])\.\.?([\\/]|$)/.test(trimmed)
+  ) {
+    throw new Error(`Could not derive a safe slug from "${value}".`);
+  }
+
+  const normalized = trimmed
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
@@ -159,16 +155,8 @@ export function normalizeSlug(value: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-  if (!normalized || normalized === "." || normalized === "..") {
+  if (!normalized) {
     throw new Error(`Could not derive a safe slug from "${value}".`);
-  }
-
-  if (
-    normalized.includes("/") ||
-    normalized.includes("\\") ||
-    normalized.includes("..")
-  ) {
-    throw new Error(`Slug "${normalized}" is not a safe path fragment.`);
   }
 
   return normalized;
@@ -223,12 +211,6 @@ function blockData<T extends Record<string, any>>(block: NotionBlockTree): T {
 }
 
 function serializeBlock(block: NotionBlockTree, depth = 0): string {
-  if (!SUPPORTED_BLOCK_TYPES.has(block.type)) {
-    throw new Error(
-      `Unsupported Notion block type "${block.type}" on page ${block.id}.`
-    );
-  }
-
   const indent = "  ".repeat(depth);
   const children =
     block.children.length > 0 ? serializeBlocks(block.children, depth + 1) : "";
@@ -313,14 +295,22 @@ export function serializeBlocks(blocks: NotionBlockTree[], depth = 0): string {
 
 async function fetchBlockTree(
   blockId: string,
-  listChildren: SyncDependencies["listBlockChildren"]
+  listChildren: SyncDependencies["listBlockChildren"],
+  depth = 0,
+  maxDepth = 25
 ): Promise<NotionBlockTree[]> {
+  if (depth > maxDepth) {
+    throw new Error(
+      `Notion block nesting exceeded the supported depth limit (${maxDepth}).`
+    );
+  }
+
   const blocks = await listChildren(blockId);
   return Promise.all(
     blocks.map(async block => ({
       ...block,
       children: block.has_children
-        ? await fetchBlockTree(block.id, listChildren)
+        ? await fetchBlockTree(block.id, listChildren, depth + 1, maxDepth)
         : [],
     }))
   );
