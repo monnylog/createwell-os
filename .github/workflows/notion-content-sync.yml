@@ -1,0 +1,69 @@
+name: Notion content sync
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 * * * *"
+
+concurrency:
+  group: notion-content-sync-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NOTION_API_TOKEN: ${{ secrets.NOTION_API_TOKEN }}
+      NOTION_SYNC_OUTPUT_DIR: docs/generated/notion-content
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: corepack pnpm install --frozen-lockfile
+
+      - name: Dry-run sync
+        run: corepack pnpm notion:sync:dry-run
+
+      - name: Apply sync
+        run: corepack pnpm notion:sync
+
+      - name: Validate generated changes
+        run: |
+          corepack pnpm check
+          corepack pnpm exec vitest run \
+            server/notion.client.pagination.test.ts \
+            server/notion.sync.test.ts \
+            server/notion.v3.privacy.test.ts \
+            server/notion.security.test.ts \
+            server/notion.safety.test.ts
+
+      - name: Commit generated content
+        run: |
+          if git diff --quiet -- docs/generated/notion-content; then
+            echo "No generated content changes to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/generated/notion-content
+          git commit -m "chore: sync published notion content"
+          git push

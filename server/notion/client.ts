@@ -2,6 +2,7 @@ import { assertNotionConfiguration, notionConfig } from "./config";
 
 const NOTION_API_BASE_URL = "https://api.notion.com/v1";
 const NOTION_VERSION = "2025-09-03";
+const DEFAULT_PAGE_SIZE = 100;
 
 type NotionRequestInit = Omit<RequestInit, "headers"> & {
   headers?: Record<string, string>;
@@ -18,7 +19,10 @@ export class NotionApiError extends Error {
   }
 }
 
-export async function notionRequest<T>(path: string, init: NotionRequestInit = {}): Promise<T> {
+export async function notionRequest<T>(
+  path: string,
+  init: NotionRequestInit = {}
+): Promise<T> {
   assertNotionConfiguration();
 
   const response = await fetch(`${NOTION_API_BASE_URL}${path}`, {
@@ -49,7 +53,68 @@ export async function queryDataSource<T>(
   });
 }
 
-export async function createPage<T>(parentDataSourceId: string, properties: Record<string, unknown>): Promise<T> {
+type NotionPaginatedResponse<T> = {
+  results?: T[];
+  has_more?: boolean;
+  next_cursor?: string | null;
+};
+
+export async function queryAllDataSourceResults<T>(
+  dataSourceId: string,
+  payload: Record<string, unknown> = {}
+): Promise<T[]> {
+  const results: T[] = [];
+  let nextCursor: string | null | undefined = undefined;
+
+  do {
+    const response: NotionPaginatedResponse<T> = await queryDataSource<
+      NotionPaginatedResponse<T>
+    >(dataSourceId, {
+      page_size: DEFAULT_PAGE_SIZE,
+      ...payload,
+      ...(nextCursor ? { start_cursor: nextCursor } : {}),
+    });
+
+    results.push(...(response.results ?? []));
+    nextCursor = response.has_more ? (response.next_cursor ?? null) : null;
+  } while (nextCursor);
+
+  return results;
+}
+
+export async function listBlockChildren<T>(
+  blockId: string,
+  startCursor?: string | null
+): Promise<NotionPaginatedResponse<T>> {
+  const query = new URLSearchParams({
+    page_size: String(DEFAULT_PAGE_SIZE),
+  });
+  if (startCursor) query.set("start_cursor", startCursor);
+  return notionRequest<NotionPaginatedResponse<T>>(
+    `/blocks/${blockId}/children?${query.toString()}`
+  );
+}
+
+export async function listAllBlockChildren<T>(blockId: string): Promise<T[]> {
+  const results: T[] = [];
+  let nextCursor: string | null | undefined = undefined;
+
+  do {
+    const response: NotionPaginatedResponse<T> = await listBlockChildren<T>(
+      blockId,
+      nextCursor
+    );
+    results.push(...(response.results ?? []));
+    nextCursor = response.has_more ? (response.next_cursor ?? null) : null;
+  } while (nextCursor);
+
+  return results;
+}
+
+export async function createPage<T>(
+  parentDataSourceId: string,
+  properties: Record<string, unknown>
+): Promise<T> {
   return notionRequest<T>("/pages", {
     method: "POST",
     body: JSON.stringify({
@@ -60,15 +125,21 @@ export async function createPage<T>(parentDataSourceId: string, properties: Reco
 }
 
 export const notionProperty = {
-  title: (value: string) => ({ title: [{ type: "text", text: { content: value } }] }),
-  richText: (value: string) => ({ rich_text: value ? [{ type: "text", text: { content: value } }] : [] }),
+  title: (value: string) => ({
+    title: [{ type: "text", text: { content: value } }],
+  }),
+  richText: (value: string) => ({
+    rich_text: value ? [{ type: "text", text: { content: value } }] : [],
+  }),
   select: (value: string) => ({ select: { name: value } }),
   checkbox: (value: boolean) => ({ checkbox: value }),
   date: (value: string) => ({ date: { start: value } }),
   relation: (pageId: string) => ({ relation: [{ id: pageId }] }),
 };
 
-function textFromFragments(fragments: Array<{ plain_text?: string }> | undefined) {
+function textFromFragments(
+  fragments: Array<{ plain_text?: string }> | undefined
+) {
   return fragments?.map(fragment => fragment.plain_text ?? "").join("") ?? "";
 }
 
@@ -78,8 +149,10 @@ export function notionPageToRecord(page: any) {
     const property = properties[name];
     if (!property) return "";
     if (property.type === "title") return textFromFragments(property.title);
-    if (property.type === "rich_text") return textFromFragments(property.rich_text);
-    if (property.type === "select" || property.type === "status") return property[property.type]?.name ?? "";
+    if (property.type === "rich_text")
+      return textFromFragments(property.rich_text);
+    if (property.type === "select" || property.type === "status")
+      return property[property.type]?.name ?? "";
     if (property.type === "date") return property.date?.start ?? "";
     if (property.type === "checkbox") return Boolean(property.checkbox);
     if (property.type === "email") return property.email ?? "";
@@ -91,7 +164,9 @@ export function notionPageToRecord(page: any) {
     url: page.url,
     name: String(readText("Name")),
     status: String(readText("Status")),
-    type: String(readText("Type") || readText("Content Type") || readText("Event Type")),
+    type: String(
+      readText("Type") || readText("Content Type") || readText("Event Type")
+    ),
     phase: String(readText("Phase")),
     priority: String(readText("Priority")),
     nextAction: String(readText("Next Action")),
@@ -102,7 +177,12 @@ export function notionPageToRecord(page: any) {
     email: String(readText("Email")),
     role: String(readText("Role")),
     week: String(readText("Week")),
-    summary: String(readText("Summary") || readText("Copy") || readText("Notes") || readText("Drop")),
+    summary: String(
+      readText("Summary") ||
+        readText("Copy") ||
+        readText("Notes") ||
+        readText("Drop")
+    ),
     start: String(readText("Start")),
     end: String(readText("End")),
     publishDate: String(readText("Publish Date")),
