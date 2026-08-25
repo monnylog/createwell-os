@@ -1,63 +1,81 @@
-# Create Well OS: Notion Production Setup
+# Create Well OS: Notion production setup
 
-Create Well uses Notion only through the server. **Never place the Notion token in browser code, a `VITE_` variable, a client-side config file, or a Git commit.**
+Create Well OS uses Notion **server-side only**. The verified direction is **one-way from Notion into this repository and the app’s read models**. Do not add repo-to-Notion write-back here, do not expose the token to the browser, and do not commit credentials.
 
-## 1. Create and scope the Notion connection
+## 1. Scope the Notion connection
 
-Create an internal Notion connection for Create Well OS. Enable read, insert, and update access. Share only the nine Create Well databases and the required parent pages with that connection. Do not give it workspace-wide access.
+Create an internal Notion connection for Create Well OS with **read access only** to the five live v3 data sources and the published CONTENT pages whose block bodies will be exported:
 
-The server requires `NOTION_API_TOKEN`. This value is stored in the project’s secret settings and is intentionally absent from the repository.
+- PEOPLE
+- FLOWS
+- MOVES
+- MONEY
+- CONTENT
 
-## 2. Confirm the database contract
+The server requires `NOTION_API_TOKEN`. Store it only in server or GitHub Actions secrets. Never place it in browser code, a `VITE_` variable, or a Git commit.
 
-The canonical schemas for Topic Well, Check-ins, Needs, and Decisions are in [`notion-schemas.md`](./notion-schemas.md). The existing data-source identifiers are server defaults, but production may override them with these server-only variables:
+## 2. Confirm the v3 contract
 
-| Variable | Database |
-|---|---|
-| `NOTION_PEOPLE_DATA_SOURCE_ID` | People |
-| `NOTION_OFFERS_DATA_SOURCE_ID` | Offers |
-| `NOTION_EVENTS_DATA_SOURCE_ID` | Events |
-| `NOTION_TASKS_DATA_SOURCE_ID` | Tasks |
-| `NOTION_CONTENT_DATA_SOURCE_ID` | Content |
-| `NOTION_TOPIC_WELL_DATA_SOURCE_ID` | Topic Well |
-| `NOTION_CHECK_INS_DATA_SOURCE_ID` | Check-ins |
-| `NOTION_DECISIONS_DATA_SOURCE_ID` | Decisions |
-| `NOTION_NEEDS_DATA_SOURCE_ID` | Needs |
+The current repository is aligned to the five-data-source v3 model documented in [`v3-domain-map.md`](./v3-domain-map.md). Production may override the built-in data-source identifiers with these server-only variables:
 
-## 3. Configure public content discipline
+| Variable                        | Data source |
+| ------------------------------- | ----------- |
+| `NOTION_PEOPLE_DATA_SOURCE_ID`  | PEOPLE      |
+| `NOTION_FLOWS_DATA_SOURCE_ID`   | FLOWS       |
+| `NOTION_MOVES_DATA_SOURCE_ID`   | MOVES       |
+| `NOTION_MONEY_DATA_SOURCE_ID`   | MONEY       |
+| `NOTION_CONTENT_DATA_SOURCE_ID` | CONTENT     |
 
-Only these records may reach public routes:
+## 3. Verified public-read behavior
 
-| Public endpoint | Server-side filter |
-|---|---|
-| `GET /api/public/content` | Content `Status = Published` and `Audience = Public` or `Community` |
-| `GET /api/public/offers` | Offers whose status is not archived, inactive, or cancelled |
-| `GET /api/public/events` | Future Events whose status is not draft, archived, or cancelled |
+The existing app remains read-only and keeps the current public filters:
 
-The public API serializes only safe display fields. It never passes raw Notion properties to the browser.
+| Surface                   | Server-side filter                                                                                        |
+| ------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `GET /api/public/content` | CONTENT `Status = Published` and `Audience = Public`                                                      |
+| `GET /api/public/flows`   | FLOWS `Public? = true`, `Status IN (Scheduled, Ready, Approved)`, `Type != Internal`, and `Date >= today` |
+| `GET /api/team/*`         | authenticated read-only projections only                                                                  |
 
-## 4. Activate the Topic Well safely
+## 4. Generated MDX sync behavior
 
-`POST /api/topic-well` validates every payload, permits eight submissions per IP address every fifteen minutes, and stores replay responses for 24 hours per idempotency key. A public submission creates a Topic Well record with the default **Intake** state. The browser should always create and send an `Idempotency-Key` header.
+`pnpm notion:sync` exports published CONTENT pages into `docs/generated/notion-content` by default.
 
-## 5. Configure the Notion webhook
+Verified safeguards:
 
-Create a Notion webhook subscription directed at:
+- paginates through all CONTENT query results
+- recursively fetches page block bodies before writing files
+- serializes supported text-oriented blocks to Markdown/MDX
+- quotes frontmatter values safely
+- normalizes slugs to safe flat filenames and rejects collisions
+- writes files atomically
+- marks generated files and only cleans up marked stale files
+- preserves manually managed `.mdx` files in the target tree
+- supports `pnpm notion:sync:dry-run` reporting for creates, updates, deletes, skips, and errors
+- exits nonzero when conversion is incomplete or unsafe
 
-```text
-https://YOUR-DOMAIN/api/webhooks/notion
-```
+Current limitations:
 
-Complete Notion’s verification flow, then store the resulting verification token in the server-only `NOTION_WEBHOOK_VERIFICATION_TOKEN` secret. The ingress endpoint verifies the `X-Notion-Signature` HMAC before invalidating the public cache. Subscribe only to Content and Events page/database updates required for public freshness.
+- the sync is still **one-way**; it never writes back into Notion
+- unsupported block types fail the sync rather than risk silently dropping content
+- only generated files bearing the sync marker are eligible for automatic cleanup
 
-## 6. Preserve private boundaries
+## 5. Webhook and cache hygiene
 
-`/api/team/*` requires a valid Manus OAuth session. `/api/admin/needs` and `/api/admin/decisions` require the authenticated local user role to equal `admin`. UI hiding is not security; these conditions are enforced inside the server routes and tRPC procedures.
+If you use the Notion webhook endpoint at `/api/webhooks/notion`, store `NOTION_WEBHOOK_VERIFICATION_TOKEN` as a server-only secret. The endpoint verifies the `X-Notion-Signature` HMAC before invalidating cached public reads.
+
+## 6. Workflow safeguards
+
+The repository workflow for sync should:
+
+- run with concurrency enabled so only one sync is active per ref
+- apply a job timeout
+- run `pnpm notion:sync:dry-run` before writing files
+- run validation (`pnpm check` and targeted tests) before committing generated changes
 
 ## 7. Launch checklist
 
-- Confirm that every team member who needs check-ins has a People record with a matching email or name.
-- Confirm that current Offers, Events, and published Content have the expected status fields.
-- Add the production domain to the Notion webhook subscription.
-- Test a Topic Well form submission twice with the same idempotency key and verify that only one Notion record is created.
-- Test a non-admin account against Needs and Decisions and confirm it receives a `403` response.
+- Confirm the connection can read the five live v3 data sources.
+- Confirm published CONTENT pages that should export are shared with the connection.
+- Add `NOTION_API_TOKEN` and `NOTION_WEBHOOK_VERIFICATION_TOKEN` as server-only secrets where needed.
+- Run `pnpm notion:sync:dry-run` and verify the reported creates, updates, deletes, skips, and errors.
+- Run `pnpm notion:sync` only after the dry-run is clean.

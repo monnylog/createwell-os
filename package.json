@@ -10,6 +10,8 @@
     "check": "tsc --noEmit",
     "format": "prettier --write .",
     "test": "vitest run",
+    "notion:sync": "tsx server/notion/sync-cli.ts",
+    "notion:sync:dry-run": "pnpm notion:sync --dry-run",
     "db:push": "drizzle-kit generate && drizzle-kit migrate"
   },
   "dependencies": {

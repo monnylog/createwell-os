@@ -1,7 +1,5 @@
-import { notionPageToRecord, queryDataSource } from "./client";
+import { notionPageToRecord, queryAllDataSourceResults } from "./client";
 import { notionConfig } from "./config";
-
-type NotionQueryResponse = { results?: any[] };
 
 export type CreateWellRecord = ReturnType<typeof notionPageToRecord>;
 
@@ -41,20 +39,29 @@ export type TeamFlowRecord = {
 const PUBLIC_FLOW_STATUSES = new Set(["scheduled", "ready", "approved"]);
 
 export async function listDataSourceRecords(dataSourceId: string) {
-  const response = await queryDataSource<NotionQueryResponse>(dataSourceId, { page_size: 100 });
-  return (response.results ?? []).map(notionPageToRecord);
+  const results = await queryAllDataSourceResults<any>(dataSourceId);
+  return results.map(notionPageToRecord);
 }
 
 function propertyValue(properties: Record<string, any>, name: string): string {
   const property = properties[name];
   if (!property) return "";
-  if (property.type === "select" || property.type === "status") return property[property.type]?.name ?? "";
-  if (property.type === "rich_text") return property.rich_text?.map((item: any) => item.plain_text ?? "").join("") ?? "";
-  if (property.type === "title") return property.title?.map((item: any) => item.plain_text ?? "").join("") ?? "";
+  if (property.type === "select" || property.type === "status")
+    return property[property.type]?.name ?? "";
+  if (property.type === "rich_text")
+    return (
+      property.rich_text?.map((item: any) => item.plain_text ?? "").join("") ??
+      ""
+    );
+  if (property.type === "title")
+    return (
+      property.title?.map((item: any) => item.plain_text ?? "").join("") ?? ""
+    );
   if (property.type === "date") return property.date?.start ?? "";
   if (property.type === "email") return property.email ?? "";
   if (property.type === "url") return property.url ?? "";
-  if (property.type === "number") return property.number == null ? "" : String(property.number);
+  if (property.type === "number")
+    return property.number == null ? "" : String(property.number);
   return "";
 }
 
@@ -77,21 +84,26 @@ function todayIso() {
  * never returned. `Final?` is asset-specific and is not a global gate.
  */
 export async function getApprovedContent() {
-  const records = await listDataSourceRecords(notionConfig.dataSourceIds.content);
-  return records
-    .filter(record => {
-      const status = normalize(propertyValue(record.properties, "Status"));
-      const audience = normalize(propertyValue(record.properties, "Audience"));
-      return status === "published" && audience === "public";
-    })
-    .map<PublicContentRecord>(record => ({
-      id: record.id,
-      name: propertyValue(record.properties, "Name") || record.name,
-      contentType: propertyValue(record.properties, "Content Type"),
-      copy: propertyValue(record.properties, "Copy"),
-      publishDate: propertyValue(record.properties, "Publish Date"),
-      url: propertyValue(record.properties, "URL"),
-    }));
+  const records = await listPublishedContentRecords();
+  return records.map<PublicContentRecord>(record => ({
+    id: record.id,
+    name: propertyValue(record.properties, "Name") || record.name,
+    contentType: propertyValue(record.properties, "Content Type"),
+    copy: propertyValue(record.properties, "Copy"),
+    publishDate: propertyValue(record.properties, "Publish Date"),
+    url: propertyValue(record.properties, "URL"),
+  }));
+}
+
+export async function listPublishedContentRecords() {
+  const records = await listDataSourceRecords(
+    notionConfig.dataSourceIds.content
+  );
+  return records.filter(record => {
+    const status = normalize(propertyValue(record.properties, "Status"));
+    const audience = normalize(propertyValue(record.properties, "Audience"));
+    return status === "published" && audience === "public";
+  });
 }
 
 /**
@@ -109,13 +121,21 @@ export async function getUpcomingPublicFlows() {
   return records
     .filter(record => {
       if (!checkboxValue(record.properties, "Public?")) return false;
-      if (normalize(propertyValue(record.properties, "Type")) === "internal") return false;
-      if (!PUBLIC_FLOW_STATUSES.has(normalize(propertyValue(record.properties, "Status")))) return false;
+      if (normalize(propertyValue(record.properties, "Type")) === "internal")
+        return false;
+      if (
+        !PUBLIC_FLOW_STATUSES.has(
+          normalize(propertyValue(record.properties, "Status"))
+        )
+      )
+        return false;
       const date = propertyValue(record.properties, "Date");
       return Boolean(date) && date >= today;
     })
     .sort((left, right) =>
-      propertyValue(left.properties, "Date").localeCompare(propertyValue(right.properties, "Date")),
+      propertyValue(left.properties, "Date").localeCompare(
+        propertyValue(right.properties, "Date")
+      )
     )
     .map<PublicFlowRecord>(record => ({
       id: record.id,
@@ -135,7 +155,10 @@ export async function getUpcomingPublicFlows() {
 export async function listFlows() {
   const records = await listDataSourceRecords(notionConfig.dataSourceIds.flows);
   return records
-    .filter(record => normalize(propertyValue(record.properties, "Status")) !== "cancelled")
+    .filter(
+      record =>
+        normalize(propertyValue(record.properties, "Status")) !== "cancelled"
+    )
     .map<TeamFlowRecord>(record => ({
       id: record.id,
       name: propertyValue(record.properties, "Name") || record.name,
@@ -154,7 +177,10 @@ export async function listMoves() {
   return listDataSourceRecords(notionConfig.dataSourceIds.moves);
 }
 
-export function findTeamPersonRecord(records: CreateWellRecord[], user: { name: string | null; email: string | null }) {
+export function findTeamPersonRecord(
+  records: CreateWellRecord[],
+  user: { name: string | null; email: string | null }
+) {
   const email = normalize(user.email ?? "");
   const name = normalize(user.name ?? "");
   const match = records.find(record => {
@@ -164,16 +190,27 @@ export function findTeamPersonRecord(records: CreateWellRecord[], user: { name: 
   });
 
   if (!match) {
-    throw new Error("Your account is not linked to a Create Well People record. Add a matching email or name before submitting.");
+    throw new Error(
+      "Your account is not linked to a Create Well People record. Add a matching email or name before submitting."
+    );
   }
 
   return match;
 }
 
-export async function getTeamProfile(user: { name: string | null; email: string | null }) {
-  const records = await listDataSourceRecords(notionConfig.dataSourceIds.people);
+export async function getTeamProfile(user: {
+  name: string | null;
+  email: string | null;
+}) {
+  const records = await listDataSourceRecords(
+    notionConfig.dataSourceIds.people
+  );
   const match = findTeamPersonRecord(records, user);
-  const matchedBy = normalize(match.email) === normalize(user.email ?? "") && Boolean(user.email) ? "email" : "name";
+  const matchedBy =
+    normalize(match.email) === normalize(user.email ?? "") &&
+    Boolean(user.email)
+      ? "email"
+      : "name";
   return {
     personPageId: match.id,
     name: match.name || user.name || "Create Well team member",
@@ -184,7 +221,10 @@ export async function getTeamProfile(user: { name: string | null; email: string 
   };
 }
 
-export async function resolvePersonPageId(user: { name: string | null; email: string | null }) {
+export async function resolvePersonPageId(user: {
+  name: string | null;
+  email: string | null;
+}) {
   const profile = await getTeamProfile(user);
   return profile.personPageId;
 }
@@ -200,33 +240,48 @@ export async function resolvePersonPageId(user: { name: string | null; email: st
 export async function createTopicWellDrop(_input: unknown): Promise<never> {
   throw V3_PAUSED(
     "Topic Well intake",
-    "a drop becomes a CONTENT draft, a FLOWS Idea, or a page body. No separate database.",
+    "a drop becomes a CONTENT draft, a FLOWS Idea, or a page body. No separate database."
   );
 }
 
-export async function createTask(_input: unknown, _personPageId: string): Promise<never> {
+export async function createTask(
+  _input: unknown,
+  _personPageId: string
+): Promise<never> {
   throw V3_PAUSED(
     "Creating Moves from the app",
-    "this branch is read-only. Notion writes; the repo remembers; the site reads.",
+    "this branch is read-only. Notion writes; the repo remembers; the site reads."
   );
 }
 
 export async function listCheckIns(_personPageId: string): Promise<never> {
-  throw V3_PAUSED("Check-ins", "no database home assigned yet. The budget is five databases.");
+  throw V3_PAUSED(
+    "Check-ins",
+    "no database home assigned yet. The budget is five databases."
+  );
 }
 
 export async function createCheckIn(
   _input: unknown,
   _personPageId: string,
-  _userName: string | null,
+  _userName: string | null
 ): Promise<never> {
-  throw V3_PAUSED("Check-ins", "no database home assigned yet. The budget is five databases.");
+  throw V3_PAUSED(
+    "Check-ins",
+    "no database home assigned yet. The budget is five databases."
+  );
 }
 
 export async function listNeeds(): Promise<never> {
-  throw V3_PAUSED("Needs", "these stay private and page-based until the permission model is proven.");
+  throw V3_PAUSED(
+    "Needs",
+    "these stay private and page-based until the permission model is proven."
+  );
 }
 
 export async function listDecisions(): Promise<never> {
-  throw V3_PAUSED("Decisions", "these stay private and page-based until the permission model is proven.");
+  throw V3_PAUSED(
+    "Decisions",
+    "these stay private and page-based until the permission model is proven."
+  );
 }
