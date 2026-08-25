@@ -4,30 +4,43 @@ Operating instructions for any coding agent working in this repository. Read thi
 
 ## What this repo is
 
-Create Well Collective's internal operating system — a TypeScript full-stack app.
+Create Well Collective's internal operating system — a TypeScript full-stack app with tRPC end to end.
 
 | Area | What's there |
 | --- | --- |
-| `client/` | Vite + React front end, shadcn/ui (see `components.json`) |
-| `server/` | Node server |
-| `shared/` | Types and logic crossing the client/server boundary |
-| `drizzle/`, `drizzle.config.ts` | Drizzle ORM schema and migrations |
+| `client/` | React 19 + Vite 7 front end, shadcn/ui over Radix primitives, Tailwind 4 |
+| `server/` | Express 4 server. Entry point is `server/_core/index.ts` |
+| `server/routers.ts` | tRPC v11 `appRouter`. Feature routers get registered here |
+| `shared/` | Types and constants crossing the client/server boundary |
+| `drizzle/schema.ts` | Drizzle ORM schema (MySQL). Currently only the `users` table |
 | `docs/` | Operating documentation, mirrored from Notion |
-| `patches/` | pnpm patches — check here before debugging odd dependency behavior |
+| `patches/` | pnpm patches — `wouter@3.7.1` is patched. Check here before debugging odd dependency behavior |
 
-Tooling: pnpm (see `pnpm-lock.yaml`), Vitest (`vitest.config.ts`), Prettier (`.prettierrc`), TypeScript (`tsconfig.json`).
+Routing is **wouter**, not React Router. Data fetching is **TanStack Query v5** wired through tRPC with `superjson`. Validation is **zod 4**.
 
 ## Commands
 
-**UNVERIFIED — fill these in.** Read `package.json` and replace this section with the real script names. Do not guess and do not run invented commands.
+Verified against `package.json`.
 
-```
-install: pnpm install
-dev:     TODO
-build:   TODO
-test:    TODO
-migrate: TODO   # Drizzle
-```
+| Command | What it runs |
+| --- | --- |
+| `pnpm install` | Install dependencies |
+| `pnpm dev` | `NODE_ENV=development tsx watch server/_core/index.ts` |
+| `pnpm build` | `vite build` then esbuild-bundles the server to `dist/` |
+| `pnpm start` | `NODE_ENV=production node dist/index.js` |
+| `pnpm check` | `tsc --noEmit` |
+| `pnpm format` | `prettier --write .` |
+| `pnpm test` | `vitest run` |
+| `pnpm db:push` | `drizzle-kit generate && drizzle-kit migrate` |
+
+There is **no lint script**. The gate is `pnpm check` plus `pnpm format`.
+
+## Database notes
+
+- Drizzle targets **MySQL** (`drizzle-orm/mysql2`, `mysqlTable`). Do not write Postgres-flavored schema.
+- `DATABASE_URL` is required or `drizzle.config.ts` throws.
+- `server/db.ts` creates the client lazily and degrades gracefully when the DB is absent, so local tooling runs without one. Preserve that behavior.
+- Auth is Manus OAuth keyed on `openId`. A user matching `ENV.ownerOpenId` is auto-granted `admin`.
 
 ## The vocabulary
 
@@ -51,6 +64,9 @@ This project uses specific internal language. Using it incorrectly produces outp
 5. **Read the schema before writing to a Notion database.** Property names are case-sensitive and select options are fixed.
 6. **Prefer one commit over several** for related files.
 7. **Name what drops, not just what continues.** A plan that only lists what survives leaves everything feeling equally urgent.
+8. **All API routes must live under `/api/`.** The gateway routes on that prefix; anything else will not resolve.
+9. **Extend, don't replace.** `drizzle/schema.ts`, `server/db.ts`, and `server/routers.ts` each carry `TODO` markers showing exactly where new tables, queries, and feature routers belong.
+10. **Verify before documenting.** If you cannot read a file, say so and mark it unverified rather than guessing. This section was wrong about the database engine until the code was actually read.
 
 ## Voice
 
