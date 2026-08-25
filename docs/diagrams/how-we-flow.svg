@@ -1,0 +1,293 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="4900" viewBox="0 0 1600 4900" font-family="Georgia, 'Times New Roman', serif">
+<defs>
+<marker id="a" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+<path d="M1 1 L11 6 L1 11 z" fill="#3A3A3A"/>
+</marker>
+<style>
+.bg{fill:#FBF7F1}
+.card{fill:#FFFFFF;stroke:#E0D8D0;stroke-width:2}
+.h1{font-size:64px;font-weight:bold;fill:#3A3A3A}
+.sub{font-size:26px;fill:#7A7068;font-style:italic}
+.pt{font-size:38px;font-weight:bold;fill:#3A3A3A}
+.pn{font-size:22px;letter-spacing:3px;fill:#C4957A;font-weight:bold}
+.pf{font-size:22px;fill:#7A7068;font-style:italic}
+.n{font-size:24px;fill:#3A3A3A;font-weight:bold}
+.ns{font-size:20px;fill:#6A6A6A}
+.lg{font-size:21px;fill:#5D5D5D}
+.stone{fill:#F2ECE4;stroke:#3A3A3A;stroke-width:2.5}
+.water{fill:#DCEEF4;stroke:#6FA8BC;stroke-width:2.5}
+.clay{fill:#EBD5C6;stroke:#3A3A3A;stroke-width:2.5}
+.sage{fill:#DBE7DD;stroke:#3A3A3A;stroke-width:2.5}
+.lav{fill:#E6DFEE;stroke:#3A3A3A;stroke-width:2.5}
+.gate{fill:#FDF3D6;stroke:#3A3A3A;stroke-width:2.5}
+.ar{stroke:#3A3A3A;stroke-width:3;fill:none;marker-end:url(#a)}
+.dsh{stroke:#8A8A8A;stroke-width:3;stroke-dasharray:10 8;fill:none;marker-end:url(#a)}
+.dbl{stroke:#3A3A3A;stroke-width:8;fill:none}
+.rule{stroke:#E0D8D0;stroke-width:2}
+</style>
+</defs>
+<rect class="bg" width="1600" height="4900"/>
+
+<text class="h1" x="80" y="120">how we flow</text>
+<text class="sub" x="80" y="168">seven offerings · seven ways the water moves · flowing &gt; forcing</text>
+<line class="rule" x1="80" y1="205" x2="1520" y2="205"/>
+
+<g transform="translate(80,250)">
+<rect class="card" rx="18" width="1440" height="560"/>
+<text class="pn" x="45" y="60">O N E</text>
+<text class="pt" x="45" y="112">source · podcast</text>
+<text class="pf" x="45" y="150">weekly · the underground river everything flows from</text>
+<rect class="stone" rx="14" x="45" y="205" width="180" height="90"/>
+<text class="n" x="135" y="245" text-anchor="middle">raw drop</text>
+<text class="ns" x="135" y="273" text-anchor="middle">what is alive</text>
+<path class="ar" d="M235 250 h60"/>
+<rect class="water" rx="14" x="305" y="205" width="180" height="90"/>
+<text class="n" x="395" y="245" text-anchor="middle">topic well</text>
+<text class="ns" x="395" y="273" text-anchor="middle">drops pool</text>
+<path class="ar" d="M495 250 h60"/>
+<rect class="lav" rx="14" x="565" y="205" width="190" height="90"/>
+<text class="n" x="660" y="245" text-anchor="middle">flow motion</text>
+<text class="ns" x="660" y="273" text-anchor="middle">gut sorts it</text>
+<path class="ar" d="M765 250 h60"/>
+<rect class="clay" rx="14" x="835" y="205" width="170" height="90"/>
+<text class="n" x="920" y="245" text-anchor="middle">record</text>
+<text class="ns" x="920" y="273" text-anchor="middle">at the studio</text>
+<path class="ar" d="M1015 250 h60"/>
+<rect class="sage" rx="14" x="1075" y="205" width="180" height="90"/>
+<text class="n" x="1165" y="245" text-anchor="middle">release</text>
+<text class="ns" x="1165" y="273" text-anchor="middle">weekly rhythm</text>
+<path class="ar" d="M1165 305 v75 H420"/>
+<rect class="water" rx="14" x="180" y="345" width="240" height="80"/>
+<text class="n" x="300" y="380" text-anchor="middle">clips + clarity</text>
+<text class="ns" x="300" y="406" text-anchor="middle">return to Source</text>
+<path class="dsh" d="M135 345 v-45"/>
+<text class="lg" x="45" y="490">Every episode is a passive asset and a studio ad. The source keeps filling</text>
+<text class="lg" x="45" y="520">the levels above it — nothing higher in the well runs dry when this is flowing.</text>
+</g>
+
+<g transform="translate(80,850)">
+<rect class="card" rx="18" width="1440" height="560"/>
+<text class="pn" x="45" y="60">T W O</text>
+<text class="pt" x="45" y="112">open current · drop-ins</text>
+<text class="pf" x="45" y="150">$10 entry · low-pressure · the community flywheel</text>
+<rect class="stone" rx="14" x="45" y="205" width="200" height="90"/>
+<text class="n" x="145" y="245" text-anchor="middle">batch the month</text>
+<text class="ns" x="145" y="273" text-anchor="middle">one cohoe</text>
+<path class="ar" d="M255 250 h55"/>
+<rect class="clay" rx="14" x="310" y="205" width="215" height="90"/>
+<text class="n" x="417" y="245" text-anchor="middle">recurring page</text>
+<text class="ns" x="417" y="273" text-anchor="middle">+ one flyer</text>
+<path class="ar" d="M535 250 h55"/>
+<rect class="sage" rx="14" x="590" y="205" width="180" height="90"/>
+<text class="n" x="680" y="245" text-anchor="middle">studio opens</text>
+<text class="ns" x="680" y="273" text-anchor="middle">team holds it</text>
+<path class="ar" d="M780 250 h55"/>
+<rect class="water" rx="14" x="835" y="205" width="195" height="90"/>
+<text class="n" x="932" y="245" text-anchor="middle">shared presence</text>
+<text class="ns" x="932" y="273" text-anchor="middle">no programming</text>
+<path class="ar" d="M1040 250 h55"/>
+<rect class="gate" rx="14" x="1095" y="205" width="160" height="90"/>
+<text class="n" x="1175" y="245" text-anchor="middle">light depanty</text>
+<text class="ns" x="1175" y="273" text-anchor="middle">what shifted</text>
+<path class="ar" d="M1175 305 v70 H480"/>
+<rect class="water" rx="14" x="240" y="340" width="240" height="80"/>
+<text class="n" x="360" y="375" text-anchor="middle">next date stays live</text>
+<text class="ns" x="360" y="401" text-anchor="middle">never rebuilt</text>
+<path class="dsh" d="M145 340 v-45"/>
+<text class="lg" x="45" y="490">Batched once, not weekly. The page updates instead of being remade, so the</text>
+<text class="lg" x="45" y="520">current keeps moving even when no one has capacity to spin it up.</text>
+</g>
+
+<g transform="translate(80,1450)">
+<rect class="card" rx="18" width="1440" height="560"/>
+<text class="pn" x="45" y="60">T H R E E</text>
+<text class="pt" x="45" y="112">community glue · book club</text>
+<text class="pf" x="45" y="150">free · weekly · time-bounded · accessibility is the point</text>
+<rect class="stone" rx="14" x="45" y="205" width="180" height="90"/>
+<text class="n" x="135" y="245" text-anchor="middle">choose a text</text>
+<text class="ns" x="135" y="273" text-anchor="middle">one the room needs</text>
+<path class="ar" d="M235 250 h55"/>
+<rect class="lav" rx="14" x="290" y="205" width="215" height="90"/>
+<text class="n" x="397" y="245" text-anchor="middle">name the container</text>
+<text class="ns" x="397" y="273" text-anchor="middle">+ the end date</text>
+<path class="ar" d="M515 250 h55"/>
+<rect class="water" rx="14" x="570" y="205" width="190" height="90"/>
+<text class="n" x="665" y="245" text-anchor="middle">read together</text>
+<text class="ns" x="665" y="273" text-anchor="middle">weekly cadence</text>
+<path class="ar" d="M770 250 h55"/>
+<rect class="sage" rx="14" x="825" y="205" width="195" height="90"/>
+<text class="n" x="922" y="245" text-anchor="middle">shared reflection</text>
+<text class="ns" x="922" y="273" text-anchor="middle">real relationship</text>
+<path class="ar" d="M1030 250 h55"/>
+<rect class="clay" rx="14" x="1085" y="205" width="170" height="90"/>
+<text class="n" x="1170" y="245" text-anchor="middle">warm invitation</text>
+<text class="ns" x="1170" y="273" text-anchor="middle">onward, no push</text>
+<path class="ar" d="M1170 305 v70 H480"/>
+<rect class="gate" rx="14" x="240" y="340" width="240" height="80"/>
+<text class="n" x="360" y="375" text-anchor="middle">close + depanty</text>
+<text class="ns" x="360" y="401" text-anchor="middle">it ends on purpose</text>
+<path class="dsh" d="M135 340 v-45"/>
+<text class="lg" x="45" y="490">A clear end date is what makes it safe to enter. The natural on-ramp toward</text>
+<text class="lg" x="45" y="520">workshops is relationship, not marketing — and hosts can carry this first.</text>
+</g>
+
+<g transform="translate(80,2050)">
+<rect class="card" rx="18" width="1440" height="620"/>
+<text class="pn" x="45" y="60">F O U R</text>
+<text class="pt" x="45" y="112">core offering · monthly workshop</text>
+<text class="pf" x="45" y="150">the heart of the experience · structured · iterative · sponsor-subsidized</text>
+<rect class="stone" rx="14" x="45" y="205" width="185" height="90"/>
+<text class="n" x="137" y="245" text-anchor="middle">3 weeks out</text>
+<text class="ns" x="137" y="273" text-anchor="middle">concept locked</text>
+<path class="ar" d="M240 250 h50"/>
+<rect class="clay" rx="14" x="290" y="205" width="215" height="90"/>
+<text class="n" x="397" y="245" text-anchor="middle">page + flyer live</text>
+<text class="ns" x="397" y="273" text-anchor="middle">sponsor confirmed</text>
+<path class="ar" d="M515 250 h50"/>
+<rect class="lav" rx="14" x="565" y="205" width="180" height="90"/>
+<text class="n" x="655" y="245" text-anchor="middle">2 weeks out</text>
+<text class="ns" x="655" y="273" text-anchor="middle">reminders ramp</text>
+<path class="ar" d="M755 250 h50"/>
+<rect class="gate" rx="14" x="805" y="205" width="175" height="90"/>
+<text class="n" x="892" y="245" text-anchor="middle">1 week out</text>
+<text class="ns" x="892" y="273" text-anchor="middle">all pre-scheduled</text>
+<path class="ar" d="M990 250 h50"/>
+<rect class="sage" rx="14" x="1040" y="205" width="215" height="90"/>
+<text class="n" x="1147" y="245" text-anchor="middle">hold the space</text>
+<text class="ns" x="1147" y="273" text-anchor="middle">grounding opens it</text>
+<path class="ar" d="M1147 305 v65 H700"/>
+<rect class="water" rx="14" x="450" y="335" width="250" height="85"/>
+<text class="n" x="575" y="370" text-anchor="middle">decomprocess</text>
+<text class="ns" x="575" y="397" text-anchor="middle">feel it before naming it</text>
+<path class="ar" d="M450 377 h-60"/>
+<rect class="gate" rx="14" x="140" y="335" width="250" height="85"/>
+<text class="n" x="265" y="370" text-anchor="middle">depanty</text>
+<text class="ns" x="265" y="397" text-anchor="middle">money · learning · next</text>
+<path class="dsh" d="M137 335 v-40"/>
+<text class="lg" x="45" y="490">Two people minimum — presence and capability, not just presence. Templates carry</text>
+<text class="lg" x="45" y="520">the recurring build so a single absence never stops the water.</text>
+<line class="rule" x1="45" y1="545" x2="1395" y2="545"/>
+<text class="pf" x="45" y="580">$10–50 per person · ~15 people · sponsorships subsidize access so more people can come</text>
+</g>
+
+<g transform="translate(80,2710)">
+<rect class="card" rx="18" width="1440" height="560"/>
+<text class="pn" x="45" y="60">F I V E</text>
+<text class="pt" x="45" y="112">planned presence · pop-up</text>
+<text class="pf" x="45" y="150">seasonal · collaborative · Create Well in the wild</text>
+<rect class="stone" rx="14" x="45" y="205" width="175" height="90"/>
+<text class="n" x="132" y="245" text-anchor="middle">aligned partner</text>
+<text class="ns" x="132" y="273" text-anchor="middle">already gathering</text>
+<path class="ar" d="M230 250 h55"/>
+<polygon class="gate" points="400,200 490,250 400,300 310,250"/>
+<text class="n" x="400" y="245" text-anchor="middle">gut-check</text>
+<path class="ar" d="M490 250 h55"/>
+<rect class="clay" rx="14" x="545" y="205" width="205" height="90"/>
+<text class="n" x="647" y="245" text-anchor="middle">smallest version</text>
+<text class="ns" x="647" y="273" text-anchor="middle">that still lands</text>
+<path class="ar" d="M760 250 h55"/>
+<rect class="lav" rx="14" x="815" y="205" width="180" height="90"/>
+<text class="n" x="905" y="245" text-anchor="middle">simple assets</text>
+<text class="ns" x="905" y="273" text-anchor="middle">reuse, don't rebuild</text>
+<path class="ar" d="M1005 250 h55"/>
+<rect class="sage" rx="14" x="1060" y="205" width="195" height="90"/>
+<text class="n" x="1157" y="245" text-anchor="middle">show up</text>
+<text class="ns" x="1157" y="273" text-anchor="middle">as a collective</text>
+<path class="ar" d="M1157 305 v70 H480"/>
+<rect class="water" rx="14" x="220" y="340" width="260" height="80"/>
+<text class="n" x="350" y="375" text-anchor="middle">capture what landed</text>
+<text class="ns" x="350" y="401" text-anchor="middle">back to the well</text>
+<path class="dsh" d="M132 340 v-45"/>
+<text class="lg" x="45" y="490">Visibility should be a current, not a drain. If the smallest version cannot be held</text>
+<text class="lg" x="45" y="520">without pulling from a committed event, it is not a yes yet.</text>
+</g>
+
+<g transform="translate(80,3310)">
+<rect class="card" rx="18" width="1440" height="600"/>
+<text class="pn" x="45" y="60">S I X</text>
+<text class="pt" x="45" y="112">surprise-ment</text>
+<text class="pf" x="45" y="150">unplanned synchronicity · we recognize these, we don't chase them</text>
+<rect class="stone" rx="14" x="45" y="205" width="190" height="90"/>
+<text class="n" x="140" y="245" text-anchor="middle">opportunity</text>
+<text class="ns" x="140" y="273" text-anchor="middle">arrives on its own</text>
+<path class="ar" d="M245 250 h50"/>
+<polygon class="gate" points="410,195 515,250 410,305 305,250"/>
+<text class="n" x="410" y="243" text-anchor="middle">2 of 3</text>
+<text class="ns" x="410" y="270" text-anchor="middle">feel a real yes?</text>
+<path class="ar" d="M515 250 h50"/>
+<polygon class="water" points="690,195 805,250 690,305 565,250"/>
+<text class="n" x="686" y="243" text-anchor="middle">can the well</text>
+<text class="ns" x="686" y="270" text-anchor="middle">hold it now?</text>
+<path class="ar" d="M805 250 h55"/>
+<rect class="sage" rx="14" x="860" y="205" width="200" height="90"/>
+<text class="n" x="960" y="245" text-anchor="middle">yes: lightest shape</text>
+<text class="ns" x="960" y="273" text-anchor="middle">nothing destabilized</text>
+<path class="dsh" d="M690 305 v75 H620"/>
+<rect class="clay" rx="14" x="360" y="340" width="260" height="85"/>
+<text class="n" x="490" y="375" text-anchor="middle">let it sit · release</text>
+<text class="ns" x="490" y="402" text-anchor="middle">a clean no protects Source</text>
+<path class="ar" d="M960 295 v85 H1090"/>
+<rect class="gate" rx="14" x="1090" y="340" width="230" height="85"/>
+<text class="n" x="1205" y="375" text-anchor="middle">depanty</text>
+<text class="ns" x="1205" y="402" text-anchor="middle">log the yes and the no</text>
+<path class="dsh" d="M360 382 H240 v-85"/>
+<text class="lg" x="45" y="500">Same-day check-in: anyone whose gut responds is part of the conversation. Two of</text>
+<text class="lg" x="45" y="530">three core members, plus capacity to deliver without borrowing from a commitment.</text>
+<text class="pf" x="45" y="568">the art museum invitation was one of these</text>
+</g>
+
+<g transform="translate(80,3950)">
+<rect class="card" rx="18" width="1440" height="720"/>
+<text class="pn" x="45" y="60">S E V E N</text>
+<text class="pt" x="45" y="112">geyser · when the water is ready to rise</text>
+<text class="pf" x="45" y="150">rare · powerful · cannot be forced · Isang Kusina was one</text>
+<rect class="stone" rx="14" x="45" y="210" width="300" height="95"/>
+<text class="n" x="195" y="252" text-anchor="middle">3+ month runway</text>
+<text class="ns" x="195" y="281" text-anchor="middle">time to actually build</text>
+<rect class="stone" rx="14" x="385" y="210" width="300" height="95"/>
+<text class="n" x="535" y="252" text-anchor="middle">team alignment</text>
+<text class="ns" x="535" y="281" text-anchor="middle">a true collective yes</text>
+<rect class="stone" rx="14" x="725" y="210" width="300" height="95"/>
+<text class="n" x="875" y="252" text-anchor="middle">lead sponsor held</text>
+<text class="ns" x="875" y="281" text-anchor="middle">access stays possible</text>
+<rect class="stone" rx="14" x="1065" y="210" width="300" height="95"/>
+<text class="n" x="1215" y="252" text-anchor="middle">multi-facilitator</text>
+<text class="ns" x="1215" y="281" text-anchor="middle">many faces, not one</text>
+<path class="ar" d="M195 315 v70 H660"/>
+<path class="ar" d="M535 315 v45 H660"/>
+<path class="ar" d="M875 315 v45 H740"/>
+<path class="ar" d="M1215 315 v70 H740"/>
+<rect class="water" rx="20" x="540" y="400" width="320" height="105"/>
+<text class="n" x="700" y="443" text-anchor="middle">the well is full</text>
+<text class="ns" x="700" y="472" text-anchor="middle">conditions are right</text>
+<path class="ar" d="M700 505 v55"/>
+<path class="water" d="M615 660 C600 590 660 545 700 505 C740 545 800 590 785 660 Z"/>
+<text class="n" x="700" y="612" text-anchor="middle">GEYSER</text>
+<text class="ns" x="700" y="690" text-anchor="middle">a community landmark people talk about long after</text>
+<rect class="gate" rx="14" x="1080" y="415" width="285" height="180"/>
+<text class="n" x="1222" y="455" text-anchor="middle">if a gate is open</text>
+<text class="ns" x="1222" y="492" text-anchor="middle">shift lower in the well</text>
+<text class="ns" x="1222" y="522" text-anchor="middle">let it sit as a seed</text>
+<text class="ns" x="1222" y="552" text-anchor="middle">or release it cleanly</text>
+<text class="ns" x="1222" y="582" text-anchor="middle">green-light only when full</text>
+<path class="dsh" d="M1080 505 H880"/>
+<rect class="gate" rx="14" x="80" y="415" width="330" height="180"/>
+<text class="n" x="245" y="455" text-anchor="middle">we hold space for these</text>
+<text class="ns" x="245" y="492" text-anchor="middle">~quarterly, not scheduled</text>
+<text class="ns" x="245" y="522" text-anchor="middle">recognized as they build</text>
+<text class="ns" x="245" y="552" text-anchor="middle">given the full runway</text>
+<text class="ns" x="245" y="582" text-anchor="middle">planning starts at alignment</text>
+<path class="dsh" d="M410 505 H520"/>
+</g>
+
+<line class="rule" x1="80" y1="4720" x2="1520" y2="4720"/>
+<g transform="translate(80,4770)">
+<line class="ar" x1="0" y1="20" x2="90" y2="20"/>
+<text class="lg" x="105" y="27">held current</text>
+<line class="dsh" x1="290" y1="20" x2="380" y2="20"/>
+<text class="lg" x="395" y="27">open invitation</text>
+<line class="dbl" x1="600" y1="20" x2="690" y2="20"/>
+<text class="lg" x="705" y="27">two people holding the well</text>
+<text class="pf" x="1130" y="27">create well collective · las vegas</text>
+</g>
+</svg>
